@@ -7,8 +7,12 @@
     '\u3042\u306A\u305F\u306FUI\u8A2D\u8A08\u3092\u624B\u4F1D\u3046\u89AA\u3057\u307F\u3084\u3059\u3044\u30A2\u30B7\u30B9\u30BF\u30F3\u30C8\u3067\u3059\u3002\u5E38\u306B\u65E5\u672C\u8A9E\u3067\u3001\u660E\u308B\u304F\u524D\u5411\u304D\u306A\u53E3\u8ABF\u3067\u4E01\u5BE7\u306B\u56DE\u7B54\u3057\u3066\u304F\u3060\u3055\u3044\u3002';
   const SUPPORTED_MODELS = ['gpt-4o-latest', 'gpt-4o-mini', 'gpt-4.1'];
   const MAX_AVATAR_FILE_SIZE = 1024 * 1024; // 1MB
+  const MAX_AVATAR_DIMENSION = 256;
+  const MIN_AVATAR_DIMENSION = 48;
+  const MAX_AVATAR_DATA_LENGTH = 140000; // ~280KB as UTF-16, keeps storage under control
   const AVATAR_STATUS_TEXT = {
     inUse: '\u30A2\u30C3\u30D7\u30ED\u30FC\u30C9\u6E08\u307F\u306E\u753B\u50CF\u3092\u4F7F\u7528\u3057\u3066\u3044\u307E\u3059\u3002',
+    processing: '\u753B\u50CF\u3092\u51E6\u7406\u4E2D\u3067\u3059\u2026',
     usingUrl: '\u30A2\u30C3\u30D7\u30ED\u30FC\u30C9\u753B\u50CF\u306F\u3042\u308A\u307E\u305B\u3093\uFF08URL\u3092\u5229\u7528\u4E2D\uFF09\u3002',
     empty: '\u30A2\u30C3\u30D7\u30ED\u30FC\u30C9\u753B\u50CF\u306F\u3042\u308A\u307E\u305B\u3093\u3002',
     chooseImage: '\u753B\u50CF\u30D5\u30A1\u30A4\u30EB\u3092\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044\u3002',
@@ -84,6 +88,7 @@
       settings: null,
     },
     draftAvatarData: '',
+    avatarReadToken: 0,
   };
 
   assistantProfile.name = state.config.assistantName || DEFAULT_CONFIG.assistantName;
@@ -592,15 +597,18 @@
     updateAvatarDisplay();
   }
 
-  function updateAvatarDisplay() {
+  function updateAvatarDisplay(previewSource) {
     if (!avatarEl || !avatarInitialEl) return;
     const nameSource =
       (state.config.assistantName || DEFAULT_CONFIG.assistantName || '').trim() || 'A';
     const initialChar = Array.from(nameSource)[0] || 'A';
     avatarInitialEl.textContent = initialChar;
 
-    const dataSource = (state.config.avatarData || '').trim();
-    const urlSource = (state.config.avatarUrl || '').trim();
+    const usingPreview = previewSource !== undefined;
+    const dataSource = usingPreview
+      ? ((previewSource || '').toString().trim())
+      : (state.config.avatarData || '').trim();
+    const urlSource = usingPreview ? '' : (state.config.avatarUrl || '').trim();
 
     const applyInitial = () => {
       if (avatarImageEl) {
@@ -663,14 +671,16 @@
   }
 
   function resetAvatarDraft() {
+    state.avatarReadToken += 1;
     state.draftAvatarData = state.config.avatarData || '';
     if (avatarFileInput instanceof HTMLInputElement) {
       avatarFileInput.value = '';
     }
     applyDefaultAvatarStatus();
+    updateAvatarDisplay();
   }
 
-  function handleAvatarFileChange(event) {
+  async function handleAvatarFileChange(event) {
     const input = event.target;
     if (!(input instanceof HTMLInputElement)) return;
     const file = input.files && input.files[0];
@@ -687,31 +697,215 @@
       input.value = '';
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result;
-      if (typeof result === 'string') {
-        state.draftAvatarData = result;
-        updateAvatarStatus(AVATAR_STATUS_TEXT.pending);
-      } else {
-        updateAvatarStatus(AVATAR_STATUS_TEXT.readError);
-        input.value = '';
+    const token = ++state.avatarReadToken;
+    updateAvatarStatus(AVATAR_STATUS_TEXT.processing);
+    try {
+      const processed = await prepareAvatarDataUrl(file);
+      if (state.avatarReadToken !== token) {
+        return;
       }
-    };
-    reader.onerror = () => {
+      state.draftAvatarData = processed;
+      updateAvatarStatus(AVATAR_STATUS_TEXT.pending);
+      updateAvatarDisplay(state.draftAvatarData);
+    } catch (error) {
+      if (state.avatarReadToken !== token) {
+        return;
+      }
+      console.warn('Unable to process avatar file:', error);
       updateAvatarStatus(AVATAR_STATUS_TEXT.readError);
       input.value = '';
-    };
-    reader.readAsDataURL(file);
+      state.draftAvatarData = state.config.avatarData || '';
+      updateAvatarDisplay();
+    }
   }
 
   function clearAvatarSelection(event) {
     if (event) event.preventDefault();
+    state.avatarReadToken += 1;
     state.draftAvatarData = '';
     if (avatarFileInput instanceof HTMLInputElement) {
       avatarFileInput.value = '';
     }
     updateAvatarStatus(AVATAR_STATUS_TEXT.cleared);
+    updateAvatarDisplay('');
+  }
+
+  async function prepareAvatarDataUrl(file) {
+    const baseDataUrl = await readFileAsDataUrl(file);
+    if (!supportsCanvas()) {
+      return baseDataUrl;
+    }
+    try {
+      const image = await loadImageFromSource(baseDataUrl);
+      return optimizeAvatarDataUrl(image, baseDataUrl, file.type || '');
+    } catch (error) {
+      console.warn('Unable to optimise avatar image:', error);
+      return baseDataUrl;
+    }
+  }
+
+  function readFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
+        } else {
+          reject(new Error('Unexpected reader result'));
+        }
+      };
+      reader.onerror = () => {
+        reject(reader.error || new Error('Unable to read file'));
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function supportsCanvas() {
+    if (typeof document === 'undefined' || typeof document.createElement !== 'function') {
+      return false;
+    }
+    const canvas = document.createElement('canvas');
+    return !!canvas && typeof canvas.getContext === 'function';
+  }
+
+  function loadImageFromSource(source) {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error('Failed to load image'));
+      image.src = source;
+    });
+  }
+
+  function optimizeAvatarDataUrl(image, fallbackDataUrl, originalType) {
+    let width = image.naturalWidth || image.width || 0;
+    let height = image.naturalHeight || image.height || 0;
+    if (!width || !height) {
+      return fallbackDataUrl;
+    }
+
+    const maxDimension = Math.max(width, height);
+    if (maxDimension > MAX_AVATAR_DIMENSION) {
+      const scale = MAX_AVATAR_DIMENSION / maxDimension;
+      width = Math.max(1, Math.round(width * scale));
+      height = Math.max(1, Math.round(height * scale));
+    }
+
+    const candidates = getAvatarExportCandidates(originalType, image);
+    let currentWidth = width;
+    let currentHeight = height;
+
+    while (currentWidth >= MIN_AVATAR_DIMENSION && currentHeight >= MIN_AVATAR_DIMENSION) {
+      const encodings = tryEncodeAvatar(image, currentWidth, currentHeight, candidates);
+      const acceptable = encodings.find((entry) => entry.data.length <= MAX_AVATAR_DATA_LENGTH);
+      if (acceptable) {
+        return acceptable.data;
+      }
+      if (currentWidth === MIN_AVATAR_DIMENSION && currentHeight === MIN_AVATAR_DIMENSION) {
+        break;
+      }
+      currentWidth = Math.max(MIN_AVATAR_DIMENSION, Math.floor(currentWidth * 0.85));
+      currentHeight = Math.max(MIN_AVATAR_DIMENSION, Math.floor(currentHeight * 0.85));
+    }
+
+    const fallbackEncodings = tryEncodeAvatar(image, MIN_AVATAR_DIMENSION, MIN_AVATAR_DIMENSION, candidates);
+    if (fallbackEncodings.length) {
+      return fallbackEncodings.reduce((best, entry) => (entry.data.length < best.data.length ? entry : best)).data;
+    }
+    return fallbackDataUrl;
+  }
+
+  function getAvatarExportCandidates(originalType, image) {
+    const lower = (originalType || '').toLowerCase();
+    const allowAlpha = lower.includes('png') || lower.includes('webp') || lower.includes('svg');
+    const needsAlpha = allowAlpha && imageHasAlpha(image);
+    const candidates = needsAlpha
+      ? [
+          { type: 'image/webp', quality: 0.86 },
+          { type: 'image/png' },
+        ]
+      : [
+          { type: 'image/webp', quality: 0.82 },
+          { type: 'image/webp', quality: 0.7 },
+          { type: 'image/jpeg', quality: 0.82 },
+          { type: 'image/jpeg', quality: 0.72 },
+        ];
+    if (!candidates.some((candidate) => candidate.type === 'image/png')) {
+      candidates.push({ type: 'image/png' });
+    }
+    return candidates;
+  }
+
+  function imageHasAlpha(image) {
+    const width = image.naturalWidth || image.width || 0;
+    const height = image.naturalHeight || image.height || 0;
+    if (!width || !height) {
+      return false;
+    }
+    const sampleWidth = Math.min(width, 64);
+    const sampleHeight = Math.min(height, 64);
+    const canvas = document.createElement('canvas');
+    canvas.width = sampleWidth;
+    canvas.height = sampleHeight;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    if (!context) {
+      return false;
+    }
+    context.drawImage(image, 0, 0, sampleWidth, sampleHeight);
+    try {
+      const { data } = context.getImageData(0, 0, sampleWidth, sampleHeight);
+      for (let index = 3; index < data.length; index += 4) {
+        if (data[index] < 255) {
+          return true;
+        }
+      }
+    } catch (error) {
+      if (!(error && error.name === 'SecurityError')) {
+        console.warn('Unable to inspect avatar transparency:', error);
+      }
+    }
+    return false;
+  }
+
+  function tryEncodeAvatar(image, width, height, candidates) {
+    const results = [];
+    candidates.forEach((candidate) => {
+      try {
+        const data = drawImageToDataUrl(image, width, height, candidate.type, candidate.quality);
+        if (data) {
+          results.push({ ...candidate, data });
+        }
+      } catch (error) {
+        // Ignore encoding failures for specific formats; fallbacks will handle it.
+      }
+    });
+    if (!results.length) {
+      try {
+        const fallbackData = drawImageToDataUrl(image, width, height, 'image/png');
+        if (fallbackData) {
+          results.push({ type: 'image/png', data: fallbackData });
+        }
+      } catch (error) {
+        console.warn('Avatar fallback encoding failed:', error);
+      }
+    }
+    return results;
+  }
+
+  function drawImageToDataUrl(image, width, height, type, quality) {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d');
+    if (!context) {
+      throw new Error('Canvas context unavailable');
+    }
+    context.drawImage(image, 0, 0, width, height);
+    if (typeof quality === 'number') {
+      return canvas.toDataURL(type, quality);
+    }
+    return canvas.toDataURL(type);
   }
 
   function populateSettingsForm() {
