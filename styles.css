@@ -200,8 +200,15 @@ body {
   gap: 12px;
 }
 
+.thread-list-entry {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+
 .thread-item {
   width: 100%;
+  flex: 1 1 auto;
   border: 1px solid rgba(25, 48, 70, 0.08);
   border-radius: 16px;
   padding: 12px 14px;
@@ -224,6 +231,57 @@ body {
   border-color: rgba(31, 182, 255, 0.4);
   box-shadow: 0 24px 46px -28px rgba(31, 182, 255, 0.6);
   background: rgba(255, 255, 255, 0.92);
+}
+
+.thread-item-delete {
+  align-self: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: inset 0 0 0 1px rgba(31, 182, 255, 0.1);
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
+}
+
+.thread-item-delete svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+}
+
+.thread-item-delete:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 26px -20px rgba(31, 182, 255, 0.5), inset 0 0 0 1px rgba(31, 182, 255, 0.15);
+}
+
+.thread-item-delete:focus-visible {
+  outline: 2px solid rgba(31, 182, 255, 0.68);
+  outline-offset: 2px;
+}
+
+.thread-item-delete:active {
+  transform: translateY(0);
+  box-shadow: inset 0 0 0 1px rgba(31, 182, 255, 0.22);
+}
+
+.thread-item-delete[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: inset 0 0 0 1px rgba(31, 182, 255, 0.05);
+}
+
+[data-theme="midnight"] .thread-item-delete {
+  background: rgba(27, 40, 58, 0.82);
+  color: var(--accent-strong);
+  box-shadow: inset 0 0 0 1px rgba(31, 182, 255, 0.18);
 }
 
 .thread-title {

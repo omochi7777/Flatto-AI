@@ -10,6 +10,7 @@
   const MAX_AVATAR_DIMENSION = 256;
   const MIN_AVATAR_DIMENSION = 48;
   const MAX_AVATAR_DATA_LENGTH = 140000; // ~280KB as UTF-16, keeps storage under control
+  const MAIN_THREAD_TITLE = '\u30E1\u30A4\u30F3\u30B9\u30EC\u30C3\u30C9';
   const AVATAR_STATUS_TEXT = {
     inUse: '\u30A2\u30C3\u30D7\u30ED\u30FC\u30C9\u6E08\u307F\u306E\u753B\u50CF\u3092\u4F7F\u7528\u3057\u3066\u3044\u307E\u3059\u3002',
     processing: '\u753B\u50CF\u3092\u51E6\u7406\u4E2D\u3067\u3059\u2026',
@@ -127,6 +128,13 @@
     newThreadButton?.addEventListener('click', handleCreateThread);
 
     threadListEl?.addEventListener('click', (event) => {
+      const deleteTarget = event.target.closest('[data-action="delete-thread"]');
+      if (deleteTarget) {
+        event.preventDefault();
+        const threadId = deleteTarget.dataset.threadId || 'main';
+        handleDeleteThread(threadId);
+        return;
+      }
       const button = event.target.closest('.thread-item');
       if (!button) return;
       threadListEl.querySelectorAll('.thread-item').forEach((item) => item.classList.remove('is-active'));
@@ -438,10 +446,18 @@
     sendButtonEl.disabled = !hasText;
   }
 
+  function updateThreadControls() {
+    const deleteButtons = threadListEl?.querySelectorAll('[data-action="delete-thread"]') || [];
+    deleteButtons.forEach((button) => {
+      button.disabled = state.messages.length === 0;
+    });
+  }
+
   function updateEmptyState() {
     const hasMessages = state.messages.length > 0;
     emptyStateEl.hidden = hasMessages;
     threadEl.classList.toggle('is-empty', !hasMessages);
+    updateThreadControls();
   }
 
   function scrollToBottom(behavior = 'smooth') {
@@ -958,6 +974,8 @@
     threadListEl.textContent = '';
 
     const threadItem = document.createElement('li');
+    threadItem.className = 'thread-list-entry';
+
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'thread-item is-active';
@@ -965,7 +983,7 @@
 
     const title = document.createElement('div');
     title.className = 'thread-title';
-    title.textContent = '\u30E1\u30A4\u30F3\u30B9\u30EC\u30C3\u30C9';
+    title.textContent = MAIN_THREAD_TITLE;
     button.appendChild(title);
 
     const preview = document.createElement('div');
@@ -973,12 +991,23 @@
     preview.textContent = formatThreadPreview(state.messages);
     button.appendChild(preview);
 
+    const deleteButton = document.createElement('button');
+    deleteButton.type = 'button';
+    deleteButton.className = 'thread-item-delete';
+    deleteButton.dataset.action = 'delete-thread';
+    deleteButton.dataset.threadId = 'main';
+    deleteButton.setAttribute('aria-label', '\u30B9\u30EC\u30C3\u30C9\u3092\u524A\u9664\u3059\u308B');
+    deleteButton.innerHTML =
+      '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6 18 18M6 18 18 6" vector-effect="non-scaling-stroke" /></svg>';
+
     threadItem.appendChild(button);
+    threadItem.appendChild(deleteButton);
     threadListEl.appendChild(threadItem);
 
     if (threadEmptyEl) {
       threadEmptyEl.hidden = true;
     }
+    updateThreadControls();
   }
 
   function formatThreadPreview(messages) {
@@ -997,6 +1026,14 @@
     window.setTimeout(() => {
       threadEmptyEl.hidden = true;
     }, 3200);
+  }
+
+  function handleDeleteThread(threadId = 'main') {
+    if (threadId !== 'main') return;
+    if (!state.messages.length) return;
+    const confirmed = window.confirm('\u3053\u306E\u30B9\u30EC\u30C3\u30C9\u3092\u524A\u9664\u3059\u308B\u3068\u3001\u4F1A\u8A71\u5C65\u6B74\u306F\u5143\u306B\u623B\u305B\u307E\u305B\u3093\u3002\u524A\u9664\u3057\u307E\u3059\u304B\uFF1F');
+    if (!confirmed) return;
+    clearMessages();
   }
 
   function openDrawer() {
