@@ -1,0 +1,135 @@
+・Goal                                                                                        
+                                                                                              
+  - AI生成の目的: 現行スマホ向けチャットUIを単一HTMLアプリとして視覚・挙動・状態管理まで忠実に
+  再構成させること。                                                                          
+  - 利用環境: 幅320〜428px程度の縦向きスマホ画面優先、モダンブラウザ（Safari iOS16+, Chrome   
+  Android, Chromiumデスクトップ狭幅）をターゲット。                                           
+  - 必須機能範囲: チャット一覧ドロワー、会話表示、メッセージ送信・返信シミュレーション、設定  
+  モーダル、ローカル保存。                                                        
+  - 配布成果物: index.html+styles.css+script.jsの構成を満たす静的アプリ。
+                                                                              
+                                                                                              
+・UI Layout                                                                                   
+                                                                                              
+  - アプリシェル: <main class="app">が全画面を覆い、data-chat-open/data-settings-open/data-   
+  theme属性で状態を制御すること。                                                             
+  - トップバー: 左にドロワートグル（plusアイコンSVG）、中央にAIプロフィール（丸型アバター+2行 
+  テキスト）、右に設定アイコンボタンを配置し、スクロール追従のsticky挙動を持たせる。          
+  - チャットドロワー: 左スライドインのリスト（幅max360px）でスレッドタイトル・プレビュー・削除
+  ボタンを列挙し、aria-hiddenとフォーカス制御を持つ。                                         
+  - チャットスレッド領域: section.chat-threadがメッセージバブルの縦リストを保持し、空状態メッ 
+  セージを表示、スクロール可能で自動スクロールを行う。                                        
+  - メッセージコンポーザ: 下部stickyフォームでtextarea自動リサイズ、送信ボタンを持つ。                                                           
+  - 設定モーダル: 中央配置フォーム（プロフィール設定/システムプロンプト/API設定）を
+  含み、閉じる・保存ボタンとフォーカストラップ、背景オーバーレイと連動する。    
+  -単層レイアウト化: 画面背景と主要 UI コンテナを一体化し、カード状の二重レイアウトを廃止すること。
+  ブラウザのビューポート全体を 1 つのレイヤーで構成し、追加の装飾オーバーレイや余白による入れ子構造を持たせない。
+  -ヘッダ固定: AI の名前・アイコンを含むヘッダ領域を常に画面上部に表示し、
+   スクロール操作時も位置が変わらないよう  にする。ユーザーの視界から外れず、操作状況を常時把握できること。
+  -入力欄固定: メッセージ入力欄（テキストエリアと送信ボタン）を常に画面下部に表示し、
+   スクロールによって隠れないようにする。コンテンツのみがスクロールし、入力操作へのアクセス性を維持すること。
+              
+                                                                                              
+・Interactions                                                                                
+                                                                                              
+  - ドロワー操作: ハンバーガー相当ボタンで開閉し、オーバーレイタップまたはEscで閉じ、開時は最 
+  初のスレッドボタンへフォーカスを移す。                                                      
+  - スレッド管理: 新規作成ボタンで連番タイトルを生成し即アクティブ化、削除ボタンは該当スレッド
+  を除去しフォールバック選択を行う。                                                          
+  - メッセージフロー: 送信時にユーザーメッセージを追加→プレビュー更新→ローカル保存→OpenAI API 
+  呼び出し→アシスタント応答追加し最新バブルのみタイプライター演出。                           
+  - 設定操作: モーダル内入力が即時stateに反映され保存、閉じると前のフォーカスへ戻す、テーマ選 
+  択はbody[data-theme]更新と全体再配色。                                                      
+  - オーバーレイ: div.app__overlayがドロワー/モーダル開時のみクリック可能となり、背景操作をブ 
+  ロックして閉じ処理をトリガー。                                                              
+  - キーボード対応: Escで閉じる・Tab循環によるフォーカストラップ・textareaでEnter送信（改行は 
+  Shift+Enter想定）など既存挙動を再現。                                                       
+                                                                                              
+  
+・Visual Specs                                                                                
+                                                                                              
+                                                                                                               
+  - タイポグラフィ: フォントはNoto Sans JP優先、ラベルは全角日本語、タイトルは文字間0.08〜    
+  0.1emの大文字感を意識する。                                                                 
+  - メッセージバブル: 受信は白系半透明、送信はアクセント色で角丸18px、AIメッセージには小さな送
+  信者ラベル、タイプライター中はハイライトラインを走らせる。                                  
+  - コントロール: 丸型アイコンボタン（SVG）、ゴースト/プライマリーボタンのホバー時アクセント濃
+  淡、入力欄フォーカスリングのテーマ別色を再現。                                              
+  - シンプルでスタイリッシュなデザインを目指し、余白（24px前後）、影、角丸（16〜28px）などを揃える。 
+ 
+                                                                                              
+・Data & Integration                                                                          
+                                                                                              
+  - スレッドモデル:                                                                           
+  {id,title,updatedAt,messages[{role:'user'|'assistant',text,createdAt}],preview,pendingAbortC
+  ontroller}構造、タイトルは最大7文字に切り詰める。                                           
+  - 永続化: localStorageキーphone-ui:threads-stateおよびphone-ui:settings-stateでスレッドと設 
+  定を保存し、再読み込み時に正規化して復元する。                                              
+  - 設定項目: AI表示名（必須・最大24文字）、システムプロンプト、OpenAI APIキー、（モデルは gpt-4o-latest 固定）、
+　アバター画像DataURL、テーマ。                                                
+  -OpenAI連携（Chat Completions / Responses）:
+  エンドポイント（推奨）: POST https://api.openai.com/v1/chat/completions
+  パラメータ例: { model: "gpt-4o-latest", messages[{role:'system'|'user'|'assistant', content}],
+　temperature, max_tokens, top_p, presence_penalty, frequency_penalty, stream }
+  認証: Authorization: Bearer <OPENAI_API_KEY>
+  送信履歴: 直近20件以内のメッセージを messages に整形して送信（system があれば先頭）。
+  同時実行: 既存の AbortController を使い、多重リクエスト時は前回を中断。
+  エンドポイント（代替）: POST https://api.openai.com/v1/responses
+  function/tool 呼び出しやマルチモーダル構成を使う場合に利用可。
+  モデル選択: 固定で gpt-4o-latest を使用（用途に関わらず統一）
+  エラー時の表示: ネットワーク/401/429/5xx は [ERROR] メッセージでユーザーに明示し、
+  リトライ（指数バックオフ）ガイドを表示。
+  - 応答処理: AbortControllerで多重リクエストを中断、JSONレスポンスから最初のテキストを抽出、 
+  取得失敗時は安全性メッセージで代替。                                                        
+  - アニメ状態: タイプライター進行をMapで管理し、スレッド切替や削除時にクリーンアップしてDOMと
+  同期させる。   
+                                                                             
+                                                                                              
+・Accessibility                                                                               
+                                                                                              
+  - ARIA属性: ドロワーaria-hidden/aria-labelledby、role="log"のチャット、role="dialog"の設定  
+  モーダル、ラベル付きボタンと視覚的ラベルを保持。                                            
+  - フォーカス管理: ドロワー・モーダル開閉時にフォーカスを移譲し閉じ時復帰、モーダル内部はTab 
+  で循環し外部フォーカスを防ぐ。                                                              
+  - キーボード操作: Escクローズ、Enter送信、aria-pressedでアクティブスレッド状態を知らせ、    
+  visually-hiddenラベルで音声読み上げ対応。                                                   
+  - コントラスト: 各テーマで主要テキストが背景に対して十分なコントラストを確保するようRGB値と 
+  不透明度を維持。                                                                            
+  - 多言語: 既定言語は日本語（lang="ja"）、英語文混在サンプルがあるため文字幅・改行の自然さを 
+  損なわないよう配慮する。                                                                    
+                                                                                              
+ 
+・NonFunctional                                                                               
+                                                                                              
+  - パフォーマンス: DOM更新はDocumentFragmentやrequestAnimationFrameを活用し、再レンダリング時
+  もスクロール追従が滑らかであること。                                                        
+  - レジリエンス: APIキー未入力やレスポンス不正時もアプリが落ちず、ユーザーに分かりやすいエ   
+  ラーメッセージを表示。                                                                      
+  - セキュリティ: APIキーはブラウザ内ローカル保存のみで送信時以外に露出させず、console.error以
+  外で漏洩しないこと。                                                                        
+  - テスト観点: ローカルストレージ復元、テーマ切替、スレッド削除、タイプライター中にスレッド切
+  替など主要シナリオを網羅。                                                                  
+  - 対応端末: iOS/Androidのソフトキーボード表示時にcomposerが隠れないよう安全領域padding・    
+  textarea自動リサイズを保持。                  
+
+
+## 実装メモ（最小限）
+
+- messages 整形: threadsState からアクティブスレッドの messages を role/content へマップ。
+- fetch 例（擬似・型なし）:
+
+await fetch("https://api.openai.com/v1/responses", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${settings.apiKey}`,
+  },
+  body: JSON.stringify({
+    model: "gpt-4o-latest",
+    stream: true,
+  }),
+  signal: pendingAbortController?.signal,
+});
+
+- SSE 受信: ReadableStream をデコードし、`data:` 行ごとに JSON パース → choices[0].delta.content を追記。                                              
+                                                                                              

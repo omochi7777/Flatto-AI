@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>FreshChat UI</title>
+    <link rel="stylesheet" href="styles.css">
+    <script defer src="script.js"></script>
+  </head>
+  <body>
+    <main class="app" data-theme="daybreak" data-chat-open="false" data-settings-open="false">
+      <header class="topbar" role="banner">
+        <button
+          class="icon-button drawer-toggle"
+          type="button"
+          aria-label="&#x30B9;&#x30EC;&#x30C3;&#x30C9;&#x4E00;&#x89A7;&#x3092;&#x958B;&#x304F;"
+          aria-expanded="false"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M4 6h16M4 12h12M4 18h16" vector-effect="non-scaling-stroke" />
+          </svg>
+        </button>
+        <div class="profile">
+          <div class="avatar" aria-hidden="true">
+            <img class="avatar-image" alt="" decoding="async" hidden />
+            <span class="avatar-initial">A</span>
+          </div>
+          <div class="identity">
+            <span class="name">Aeris</span>
+            <span class="status">&#x3044;&#x3064;&#x3067;&#x3082;&#x76F8;&#x8AC7;&#x3067;&#x304D;&#x307E;&#x3059;</span>
+          </div>
+        </div>
+        <button
+          class="icon-button settings-toggle"
+          type="button"
+          aria-label="&#x8A2D;&#x5B9A;&#x30E2;&#x30FC;&#x30C0;&#x30EB;&#x3092;&#x958B;&#x304F;"
+          aria-haspopup="dialog"
+          aria-expanded="false"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm8.94 3.16-1.23-.96a1 1 0 0 1-.32-1.11l.47-1.49a1 1 0 0 0-.58-1.24l-1.4-.56a1 1 0 0 0-1.23.36l-.9 1.29a1 1 0 0 1-1.07.42l-1.54-.37a1 1 0 0 0-1.16.72l-.38 1.52a1 1 0 0 1-.92.75H9.1a1 1 0 0 0-.94.66l-.53 1.49a1 1 0 0 0 .4 1.15l1.3.92a1 1 0 0 1 .4 1.09l-.42 1.5a1 1 0 0 0 .68 1.22l1.46.43a1 1 0 0 0 1.16-.57l.63-1.42a1 1 0 0 1 1.03-.58h1.55a1 1 0 0 0 .97-.71l.45-1.5a1 1 0 0 1 1.15-.71l1.52.3a1 1 0 0 0 1.13-.68l.45-1.45a1 1 0 0 0-.4-1.1Z"
+              vector-effect="non-scaling-stroke"
+            />
+          </svg>
+        </button>
+      </header>
+
+      <div class="layer drawer-layer" data-role="drawer-layer">
+        <div class="backdrop drawer-backdrop" data-action="close-drawer" aria-hidden="true"></div>
+        <aside
+          class="chat-drawer"
+          aria-labelledby="drawer-title"
+          aria-hidden="true"
+          tabindex="-1"
+        >
+          <header class="drawer-header">
+            <h2 id="drawer-title">&#x30C1;&#x30E3;&#x30C3;&#x30C8;&#x30B9;&#x30EC;&#x30C3;&#x30C9;</h2>
+            <button class="drawer-close icon-button" type="button" data-action="close-drawer" aria-label="&#x30B9;&#x30EC;&#x30C3;&#x30C9;&#x4E00;&#x89A7;&#x3092;&#x9589;&#x3058;&#x308B;">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M6 6 18 18M6 18 18 6" vector-effect="non-scaling-stroke" />
+              </svg>
+            </button>
+          </header>
+          <div class="drawer-actions">
+            <button class="new-thread-button" type="button" data-action="create-thread">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M12 5v14M5 12h14" vector-effect="non-scaling-stroke" />
+              </svg>
+              <span>&#x65B0;&#x898F;&#x30B9;&#x30EC;&#x30C3;&#x30C9;</span>
+            </button>
+          </div>
+          <nav class="drawer-content" aria-label="&#x65E2;&#x5B58;&#x30B9;&#x30EC;&#x30C3;&#x30C9;&#x4E00;&#x89A7;">
+            <ol class="thread-list" role="list"></ol>
+            <p class="thread-empty" hidden>&#x307E;&#x3060;&#x30B9;&#x30EC;&#x30C3;&#x30C9;&#x304C;&#x3042;&#x308A;&#x307E;&#x305B;&#x3093;&#x3002;&#x65B0;&#x898F;&#x30B9;&#x30EC;&#x30C3;&#x30C9;&#x3092;&#x4F5C;&#x6210;&#x3057;&#x3066;&#x304F;&#x3060;&#x3055;&#x3044;&#x3002;</p>
+          </nav>
+        </aside>
+      </div>
+
+      <div class="layer settings-layer" data-role="settings-layer">
+        <div class="backdrop settings-backdrop" data-action="close-settings" aria-hidden="true"></div>
+        <section
+          class="settings-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="settings-title"
+          aria-describedby="settings-description"
+          aria-hidden="true"
+          tabindex="-1"
+        >
+          <header class="settings-header">
+            <div>
+              <h2 id="settings-title">&#x8A2D;&#x5B9A;</h2>
+              <p id="settings-description">&#x30C1;&#x30E3;&#x30C3;&#x30C8;&#x306E;&#x52D5;&#x4F5C;&#x3068;&#x30A2;&#x30B7;&#x30B9;&#x30BF;&#x30F3;&#x30C8;&#x306E;&#x60C5;&#x5831;&#x3092;&#x8ABF;&#x6574;&#x3057;&#x307E;&#x3059;&#x3002;</p>
+            </div>
+            <button class="settings-close icon-button" type="button" data-action="close-settings" aria-label="&#x8A2D;&#x5B9A;&#x3092;&#x9589;&#x3058;&#x308B;">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M6 6 18 18M6 18 18 6" vector-effect="non-scaling-stroke" />
+              </svg>
+            </button>
+          </header>
+          <form class="settings-form" autocomplete="off">
+            <fieldset class="settings-section">
+              <legend>&#x30A2;&#x30B7;&#x30B9;&#x30BF;&#x30F3;&#x30C8;&#x60C5;&#x5831;</legend>
+              <label class="field">
+                <span class="field-label">&#x8868;&#x793A;&#x540D;</span>
+                <input type="text" name="assistantName" placeholder="Aeris" value="Aeris" />
+              </label>
+              <label class="field">
+                <span class="field-label">&#x30B9;&#x30C6;&#x30FC;&#x30BF;&#x30B9;&#x30C6;&#x30AD;&#x30B9;&#x30C8;</span>
+                <input type="text" name="assistantStatus" placeholder="&#x3044;&#x3064;&#x3067;&#x3082;&#x76F8;&#x8AC7;&#x3067;&#x304D;&#x307E;&#x3059;" value="&#x3044;&#x3064;&#x3067;&#x3082;&#x76F8;&#x8AC7;&#x3067;&#x304D;&#x307E;&#x3059;" />
+              </label>
+              <label class="field">
+                <span class="field-label">&#x30A2;&#x30A4;&#x30B3;&#x30F3;&#x753B;&#x50CF; URL</span>
+                <input type="url" name="avatarUrl" placeholder="https://example.com/avatar.png" inputmode="url" />
+                <small class="field-support">&#x5F62;&#x306F;&#x5186;&#x5F62;&#x306B;&#x30AF;&#x30ED;&#x30C3;&#x30D7;&#x3055;&#x308C;&#x307E;&#x3059;&#x3002;&#x672A;&#x8A2D;&#x5B9A;&#x6642;&#x306F;&#x982D;&#x6587;&#x5B57;&#x304C;&#x8868;&#x793A;&#x3055;&#x308C;&#x307E;&#x3059;&#x3002;</small>
+              </label>
+              <label class="field">
+                <span class="field-label">&#x30ED;&#x30FC;&#x30AB;&#x30EB;&#x753B;&#x50CF;&#x30A2;&#x30C3;&#x30D7;&#x30ED;&#x30FC;&#x30C9;</span>
+                <input type="file" name="avatarFile" accept="image/*" />
+                <small class="field-support">
+                  &#x30D5;&#x30A1;&#x30A4;&#x30EB;&#x306F;1MB&#x4EE5;&#x4E0B;&#x306E;PNG/JPEG/SVG&#x3092;&#x4F7F;&#x7528;&#x3057;&#x3066;&#x304F;&#x3060;&#x3055;&#x3044;&#x3002;
+                  <span data-avatar-status>&#x30A2;&#x30C3;&#x30D7;&#x30ED;&#x30FC;&#x30C9;&#x753B;&#x50CF;&#x306F;&#x307E;&#x3060;&#x3042;&#x308A;&#x307E;&#x305B;&#x3093;&#x3002;</span>
+                </small>
+                <div class="field-actions">
+                  <button type="button" class="text-button" data-action="clear-avatar">&#x30A2;&#x30C3;&#x30D7;&#x30ED;&#x30FC;&#x30C9;&#x3092;&#x30AF;&#x30EA;&#x30A2;</button>
+                </div>
+              </label>
+            </fieldset>
+            <fieldset class="settings-section">
+              <legend>OpenAI &#x63A5;&#x7D9A;</legend>
+              <label class="field">
+                <span class="field-label">API &#x30AD;&#x30FC;</span>
+                <input
+                  type="password"
+                  name="apiKey"
+                  placeholder="sk-..."
+                  autocomplete="off"
+                />
+                <small class="field-support">&#x30D6;&#x30E9;&#x30A6;&#x30B6;&#x306E;&#x30ED;&#x30FC;&#x30AB;&#x30EB;&#x30B9;&#x30C8;&#x30EC;&#x30FC;&#x30B8;&#x306B;&#x306E;&#x307F;&#x4FDD;&#x5B58;&#x3055;&#x308C;&#x307E;&#x3059;&#x3002;</small>
+              </label>
+              <label class="field">
+                <span class="field-label">&#x30E2;&#x30C7;&#x30EB;</span>
+                <select name="model">
+                  <option value="gpt-4o-latest" selected>GPT-4o Latest</option>
+                  <option value="gpt-4o-mini">GPT-4o mini</option>
+                  <option value="gpt-4.1">GPT-4.1</option>
+                </select>
+                <small class="field-support">&#x5B9F;&#x969B;&#x306B;&#x547C;&#x3073;&#x51FA;&#x3059;OpenAI&#x30E2;&#x30C7;&#x30EB;&#x3092;&#x9078;&#x629E;&#x3057;&#x307E;&#x3059;&#x3002;</small>
+              </label>
+              <label class="field">
+                <span class="field-label">&#x30B7;&#x30B9;&#x30C6;&#x30E0;&#x30D7;&#x30ED;&#x30F3;&#x30D7;&#x30C8;</span>
+                <textarea
+                  name="systemPrompt"
+                  rows="3"
+                  placeholder="&#x30A2;&#x30B7;&#x30B9;&#x30BF;&#x30F3;&#x30C8;&#x306B;&#x6C42;&#x3081;&#x308B;&#x30C8;&#x30FC;&#x30F3;&#x3084;&#x30EB;&#x30FC;&#x30EB;"
+                >&#x3042;&#x306A;&#x305F;&#x306F;UI&#x8A2D;&#x8A08;&#x3092;&#x624B;&#x4F1D;&#x3046;&#x89AA;&#x3057;&#x307F;&#x3084;&#x3059;&#x3044;&#x30A2;&#x30B7;&#x30B9;&#x30BF;&#x30F3;&#x30C8;&#x3067;&#x3059;&#x3002;&#x5E38;&#x306B;&#x65E5;&#x672C;&#x8A9E;&#x3067;&#x3001;&#x660E;&#x308B;&#x304F;&#x524D;&#x5411;&#x304D;&#x306A;&#x53E3;&#x8ABF;&#x3067;&#x4E01;&#x5BE7;&#x306B;&#x56DE;&#x7B54;&#x3057;&#x3066;&#x304F;&#x3060;&#x3055;&#x3044;&#x3002;</textarea>
+              </label>
+            </fieldset>
+            <div class="settings-actions">
+              <button type="button" class="ghost-button" data-action="close-settings">&#x30AD;&#x30E3;&#x30F3;&#x30BB;&#x30EB;</button>
+              <button type="submit" class="primary-button">&#x4FDD;&#x5B58;</button>
+            </div>
+          </form>
+        </section>
+      </div>
+
+      <section class="chat-thread" aria-label="&#x30C1;&#x30E3;&#x30C3;&#x30C8;&#x30B9;&#x30EC;&#x30C3;&#x30C9;">
+        <div class="chat-empty" role="status">&#x30E1;&#x30C3;&#x30BB;&#x30FC;&#x30B8;&#x3092;&#x9001;&#x4FE1;&#x3057;&#x3066;&#x4F1A;&#x8A71;&#x3092;&#x59CB;&#x3081;&#x307E;&#x3057;&#x3087;&#x3046;&#x3002;</div>
+        <ol class="chat-messages" aria-live="polite"></ol>
+      </section>
+
+      <form class="composer" autocomplete="off">
+        <label class="sr-only" for="message-input">&#x30E1;&#x30C3;&#x30BB;&#x30FC;&#x30B8;&#x672C;&#x6587;</label>
+        <textarea
+          id="message-input"
+          name="message"
+          rows="1"
+          placeholder="&#x805E;&#x304D;&#x305F;&#x3044;&#x3053;&#x3068;&#x3092;&#x66F8;&#x3044;&#x3066;&#x304F;&#x3060;&#x3055;&#x3044;&#x2026;"
+          maxlength="2000"
+          required
+        ></textarea>
+        <button class="send-button" type="submit" disabled>
+          <span>&#x9001;&#x4FE1;</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M4.3 4.3 20 12 4.3 19.7l1.4-5.6 8.3-2.1-8.3-2.1z" vector-effect="non-scaling-stroke" />
+          </svg>
+        </button>
+      </form>
+    </main>
+  </body>
+</html>
+
