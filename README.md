@@ -43,6 +43,11 @@ OpenAI APIを手軽に試せる、スマートフォンに最適化されたチ�
     *(注: 上記URLの `repository-url` は、ご自身のGitHubリポジトリのURLに書き換えてください)*
 
 2.  Vercelの画面が開いたら、指示に従ってリポジトリ名などを決定します。
+   
+   ※プロジェクト名は 小文字・数字・. _ - のみ（例: flatto-ai）。
+   　Flatto-AI のような大文字は不可です。
+   　✅ flatto-ai, flatto-ai-001, flatto.ai
+　　　❌ Flatto-AI, Flatto AI, flatto@ai
 
 3.  **Environment Variables（環境変数）**の欄に、取得しておいたあなたの `OPENAI_API_KEY` を貼り付けます。
 
@@ -62,9 +67,9 @@ OpenAI APIを手軽に試せる、スマートフォンに最適化されたチ�
 
 ## 📖 もっと詳しく知りたい方へ
 
-アシスタントのアイコン画像の変更方法や、各ファイルの詳しい解説、カスタマイズのヒントなどをnoteで公開しています。
+AIのアイコン画像の変更方法や、各ファイルの詳しい解説、カスタマイズのヒントなどをnoteで公開しています。
 
-➡️ **（ここにnote記事のタイトルとURLを記載）**
+➡️
 
 ---
 
@@ -80,6 +85,3 @@ vercel login
 vercel env add OPENAI_API_KEY   # ここでOpenAIのAPIキーを入力
 vercel --prod
 
-<details>
-ライセンス
-このプロジェクトはMITライセンスです。

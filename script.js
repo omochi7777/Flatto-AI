@@ -4,25 +4,25 @@
   const STORAGE_KEY = 'freshchat-thread';
   const CONFIG_KEY = 'freshchat-config';
   const DEFAULT_SYSTEM_PROMPT =
-    '\u3042\u306A\u305F\u306FUI\u8A2D\u8A08\u3092\u624B\u4F1D\u3046\u89AA\u3057\u307F\u3084\u3059\u3044\u30A2\u30B7\u30B9\u30BF\u30F3\u30C8\u3067\u3059\u3002\u5E38\u306B\u65E5\u672C\u8A9E\u3067\u3001\u660E\u308B\u304F\u524D\u5411\u304D\u306A\u53E3\u8ABF\u3067\u4E01\u5BE7\u306B\u56DE\u7B54\u3057\u3066\u304F\u3060\u3055\u3044\u3002';
+    'あなたはUI設計を手伝う親しみやすいアシスタントです。常に日本語で、明るく前向きな口調で丁寧に回答してください。';
   const SUPPORTED_MODELS = ['gpt-4o-latest', 'gpt-4o-mini', 'gpt-4.1'];
   const MAX_AVATAR_FILE_SIZE = 1024 * 1024; // 1MB
   const MAX_AVATAR_DIMENSION = 256;
   const MIN_AVATAR_DIMENSION = 48;
   const MAX_AVATAR_DATA_LENGTH = 140000; // ~280KB as UTF-16, keeps storage under control
-  const MAIN_THREAD_TITLE = '\u30E1\u30A4\u30F3\u30B9\u30EC\u30C3\u30C9';
-  const NEW_THREAD_TITLE_BASE = '\u30B9\u30EC\u30C3\u30C9';
+  const MAIN_THREAD_TITLE = 'メインスレッド';
+  const NEW_THREAD_TITLE_BASE = 'スレッド';
   const THREAD_STORAGE_VERSION = 2;
   const AVATAR_STATUS_TEXT = {
-    inUse: '\u30A2\u30C3\u30D7\u30ED\u30FC\u30C9\u6E08\u307F\u306E\u753B\u50CF\u3092\u4F7F\u7528\u3057\u3066\u3044\u307E\u3059\u3002',
-    processing: '\u753B\u50CF\u3092\u51E6\u7406\u4E2D\u3067\u3059\u2026',
-    usingUrl: '\u30A2\u30C3\u30D7\u30ED\u30FC\u30C9\u753B\u50CF\u306F\u3042\u308A\u307E\u305B\u3093\uFF08URL\u3092\u5229\u7528\u4E2D\uFF09\u3002',
-    empty: '\u30A2\u30C3\u30D7\u30ED\u30FC\u30C9\u753B\u50CF\u306F\u3042\u308A\u307E\u305B\u3093\u3002',
-    chooseImage: '\u753B\u50CF\u30D5\u30A1\u30A4\u30EB\u3092\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044\u3002',
-    sizeLimit: '\u753B\u50CF\u306F1MB\u4EE5\u4E0B\u306B\u3057\u3066\u304F\u3060\u3055\u3044\u3002',
-    readError: '\u753B\u50CF\u3092\u8AAD\u307F\u8FBC\u3081\u307E\u305B\u3093\u3067\u3057\u305F\u3002',
-    pending: '\u30A2\u30C3\u30D7\u30ED\u30FC\u30C9\u753B\u50CF\u304C\u4FDD\u5B58\u5F85\u3061\u3067\u3059\u3002',
-    cleared: '\u30A2\u30C3\u30D7\u30ED\u30FC\u30C9\u753B\u50CF\u3092\u30AF\u30EA\u30A2\u3057\u307E\u3057\u305F\u3002\u4FDD\u5B58\u3059\u308B\u3068\u53CD\u6620\u3055\u308C\u307E\u3059\u3002',
+    inUse: 'アップロード済みの画像を使用しています。',
+    processing: '画像を処理中です…',
+    usingUrl: 'アップロード画像はありません（URLを利用中）。',
+    empty: 'アップロード画像はありません。',
+    chooseImage: '画像ファイルを選択してください。',
+    sizeLimit: '画像は1MB以下にしてください。',
+    readError: '画像を読み込めませんでした。',
+    pending: 'アップロード画像が保存待ちです。',
+    cleared: 'アップロード画像をクリアしました。保存すると反映されます。',
   };
   const DEFAULT_CONFIG = {
     assistantName: 'Aeris',
@@ -43,7 +43,7 @@
   const textareaEl = formEl.querySelector('textarea');
   const sendButtonEl = formEl.querySelector('.send-button');
   const composerDefaultPlaceholder = textareaEl.getAttribute('placeholder') || '';
-  const composerNoThreadPlaceholder = '\u307E\u305A\u65B0\u3057\u3044\u30B9\u30EC\u30C3\u30C9\u3092\u4F5C\u6210\u3057\u3066\u304F\u3060\u3055\u3044\u3002';
+  const composerNoThreadPlaceholder = 'まず新しいスレッドを作成してください。';
   const profileNameEl = app.querySelector('.identity .name');
   const profileStatusEl = app.querySelector('.identity .status');
   const avatarEl = app.querySelector('.avatar');
@@ -72,10 +72,10 @@
   const assistantProfile = {
     name: DEFAULT_CONFIG.assistantName,
     cannedReplies: [
-      '\u4E86\u89E3\u3057\u307E\u3057\u305F\u3002\u6B21\u306B\u9032\u3081\u305F\u3044\u5185\u5BB9\u304C\u3042\u308C\u3070\u6559\u3048\u3066\u304F\u3060\u3055\u3044\u3002',
-      '\u30C1\u30E3\u30C3\u30C8\u6B04\u306E\u30D9\u30FC\u30B9\u306F\u6574\u3044\u307E\u3057\u305F\u3002\u7D9A\u3044\u3066\u30B9\u30EC\u30C3\u30C9\u4E00\u89A7\u3092\u6574\u3048\u307E\u3057\u3087\u3046\u304B\uFF1F',
-      '\u6C17\u306B\u306A\u308B\u8981\u4EF6\u304C\u3042\u308C\u3070\u3001\u3044\u3064\u3067\u3082\u6C17\u8EFD\u306B\u805E\u3044\u3066\u304F\u3060\u3055\u3044\u306D\u3002',
-      '\u3044\u3044\u611F\u3058\u3067\u3059\u306D\uFF01\u3053\u306E\u307E\u307E\u660E\u308B\u3044\u30C8\u30FC\u30F3\u3067\u78E8\u304D\u8FBC\u3093\u3067\u3044\u304D\u307E\u3057\u3087\u3046\u3002',
+      '了解しました。次に進めたい内容があれば教えてください。',
+      'チャット欄のベースは整いました。続いてスレッド一覧を整えましょうか？',
+      '気になる要件があれば、いつでも気軽に聞いてくださいね。',
+      'いい感じですね！このまま明るいトーンで磨き込んでいきましょう。',
     ],
   };
 
@@ -388,7 +388,7 @@
   }
 
   function formatMeta(message) {
-    const label = message.role === 'user' ? '\u3042\u306A\u305F' : assistantProfile.name;
+    const label = message.role === 'user' ? 'あなた' : assistantProfile.name;
     const time = new Intl.DateTimeFormat('ja-JP', {
       hour: '2-digit',
       minute: '2-digit',
@@ -523,12 +523,12 @@
     const normalizedLower = userContent.toLowerCase();
     const normalized = userContent;
 
-    if (normalized.includes('\u3042\u308A\u304C\u3068\u3046') || normalizedLower.includes('thanks')) {
-      return '\u3069\u3046\u3044\u305F\u3057\u307E\u3057\u3066\u3002\u3044\u3064\u3067\u3082\u30B5\u30DD\u30FC\u30C8\u3057\u307E\u3059\u306D\u3002';
+    if (normalized.includes('ありがとう') || normalizedLower.includes('thanks')) {
+      return 'どういたしまして。いつでもサポートしますね。';
     }
 
-    if (normalized.includes('\u6B21') || normalizedLower.includes('next')) {
-      return '\u6B21\u306E\u30B9\u30C6\u30C3\u30D7\u3068\u3057\u3066\u30B9\u30EC\u30C3\u30C9\u4E00\u89A7\u306EUI\u3092\u6E96\u5099\u3057\u3066\u304A\u304F\u3068\u30B9\u30E0\u30FC\u30BA\u3067\u3059\u3002';
+    if (normalized.includes('次') || normalizedLower.includes('next')) {
+      return '次のステップとしてスレッド一覧のUIを準備しておくとスムーズです。';
     }
 
     const index = Math.floor(Math.random() * assistantProfile.cannedReplies.length);
@@ -1221,7 +1221,7 @@
       deleteButton.className = 'thread-item-delete';
       deleteButton.dataset.action = 'delete-thread';
       deleteButton.dataset.threadId = thread.id;
-      deleteButton.setAttribute('aria-label', '\u30B9\u30EC\u30C3\u30C9\u3092\u524A\u9664\u3059\u308B');
+      deleteButton.setAttribute('aria-label', 'スレッドを削除する');
       deleteButton.innerHTML =
         '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6 18 18M6 18 18 6" vector-effect="non-scaling-stroke" /></svg>';
 
@@ -1233,7 +1233,7 @@
     if (threadEmptyEl) {
       if (state.threads.length === 0) {
         threadEmptyEl.hidden = false;
-        threadEmptyEl.textContent = '\u307E\u3060\u30B9\u30EC\u30C3\u30C9\u304C\u3042\u308A\u307E\u305B\u3093\u3002\u300C\u65B0\u898F\u30B9\u30EC\u30C3\u30C9\u300D\u3092\u62BC\u3057\u3066\u4F5C\u6210\u3057\u307E\u3057\u3087\u3046\u3002';
+        threadEmptyEl.textContent = 'まだスレッドがありません。「新規スレッド」を押して作成しましょう。';
       } else {
         threadEmptyEl.hidden = true;
       }
@@ -1243,11 +1243,11 @@
 
   function formatThreadPreview(messages) {
     if (!messages.length) {
-      return '\u307E\u3060\u30E1\u30C3\u30BB\u30FC\u30B8\u304C\u3042\u308A\u307E\u305B\u3093\u3002';
+      return 'まだメッセージがありません。';
     }
     const lastMessage = messages[messages.length - 1].content || '';
     const normalized = lastMessage.replace(/\s+/g, ' ').trim();
-    return normalized.length > 36 ? `${normalized.slice(0, 36)}\u2026` : normalized || '\u30E1\u30C3\u30BB\u30FC\u30B8';
+    return normalized.length > 36 ? `${normalized.slice(0, 36)}…` : normalized || 'メッセージ';
   }
 
   function handleCreateThread() {
@@ -1275,7 +1275,7 @@
     if (!targetThread) return;
 
     const confirmed = window.confirm(
-      '\u3053\u306E\u30B9\u30EC\u30C3\u30C9\u3092\u524A\u9664\u3059\u308B\u3068\u3001\u4F1A\u8A71\u5C65\u6B74\u306F\u5143\u306B\u623B\u305B\u307E\u305B\u3093\u3002\u524A\u9664\u3057\u307E\u3059\u304B\uFF1F'
+      'このスレッドを削除すると、会話履歴は元に戻せません。削除しますか？'
     );
     if (!confirmed) return;
 

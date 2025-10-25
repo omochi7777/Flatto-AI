@@ -5,8 +5,8 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   const body = req.body || {};
-　const { messages = [], model = 'gpt-4o-mini', systemPrompt, apiKey } = body;
-　// BYOKが来ていればそれを、なければ環境変数を使う
+  const { messages = [], model = 'gpt-4o-mini', systemPrompt, apiKey } = body;
+  // BYOKが来ていればそれを、なければ環境変数を使う
   const key = apiKey || process.env.OPENAI_API_KEY;  
 if (!key) return res.status(500).json({ error: 'OPENAI_API_KEY is not set' });
 
