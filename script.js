@@ -227,6 +227,7 @@
       messages,
       model: modelId,
       systemPrompt: (state.config.systemPrompt || DEFAULT_SYSTEM_PROMPT).trim() || DEFAULT_SYSTEM_PROMPT,
+      max_tokens: 4096,
     };
 
     if (window.__BYOK__) {
