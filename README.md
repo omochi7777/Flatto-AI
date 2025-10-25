@@ -1,90 +1,85 @@
-# ふらっとAI - スマホ用チャットアプリ
+# ふらっとAI - スマホ用チャットUIテンプレート
 
-スマートフォン向けチャットUIアプリケーションです。（PCからでももちろん操作可能）
-Open AIのAPIを使用する前提のUIです。（API利用には利用料金がかかりますので注意してください）
-APIをさくっと使ってみたい方におすすめです！改変などご自由にどうぞ
+OpenAI APIを手軽に試せる、スマートフォンに最適化されたチャットUIのテンプレートです。
+面倒な設定は不要。最短1分で、あなただけのAIチャットアプリを公開できます。
 
-## 特徴
+![アプリのスクショ](./assets/screen.png)
 
-- 📱 **レスポンシブデザイン**: スマートフォン画面（320-428px）に最適化
-- 🎨 **シンプルなUI**: 使いやすくてシンプルなデザインを目指しました
-- 💬 **リアルタイムチャット**: OpenAI APIとの連携でリアルタイム会話
-- ⚙️ **カスタマイズ可能**: アシスタント名、アバター、システムプロンプトを設定可能
-- 🔒 **ローカル保存**: ブラウザのローカルストレージでデータを安全に保存
+## ✨ 特徴
 
-## ファイル構成
-
-```
-├── index.html          # メインHTMLファイル
-├── styles.css          # スタイルシート
-├── script.js           # JavaScript機能
-└── README.md           # このファイル
-```
-
-## 使用方法
-
-## ✅ はじめに（必要なもの）
-- いずれかの方法でデプロイします。**最短は「A. ワンクリック」**です。
-  - A. ワンクリック：**GitHubアカウント** + **Vercelアカウント**（無料プランで使用できます）
-  - B. GitHubなし：Vercelアカウント + PC + Vercel CLI
-  - C. デモ：APIなしのモックでUIだけ試す
-
-> セキュリティ上の理由で **GitHub Pages では動作させないでください**。  
-> OpenAIのAPIキーが公開されます。必ず Vercel でデプロイし、キーは**環境変数**に設定してください。
+- 📱 **スマホに最適化**: スマートフォンの画面で見やすく、操作しやすいデザインです。
+- 🚀 **すぐに試せる**: 面倒な環境構築は不要。Vercelへのワンクリックデプロイに対応。
+- ⚙️ **カスタマイズ可能**: アシスタントの名前やアイコン、性格（システムプロンプト）を自由に変更できます。
+- 🔒 **セキュア設計**: APIキーが外部に漏れない安全な仕組みを採用しています。
 
 ---
 
-## 🚀 はじめ方（Vercel ダッシュボードから）
-[![Open Vercel Dashboard](https://img.shields.io/badge/Open%20Vercel%20Dashboard-000?logo=vercel)](https://vercel.com/dashboard)
+## DEMO
 
-1. ダッシュボードを開く（未登録なら表示に従って無料登録）
-2. 右上 **Add New… → Project**
-3. **GitHub** を接続し、このリポジトリを選んで **Import**
-4. （必要なら）**Root Directory** を指定
-5. **Environment Variables** に `OPENAI_API_KEY` を追加
-6. **Deploy** を押す
+まずは、UIの使い心地をデモで体験してみてください。
 
-セキュリティ上、**GitHub Pages では本番運用不可**です。  
-UIだけ試すデモは `?demo=1`、本番は必ず Vercel を使ってください。
+➡️ **[デモページを開く](https://omochi7777.github.io/Flatto-AI/?demo=1)**
+
+※デモモードでは、実際のAIとの会話（API通信）はできません。
+
 ---
 
-## GitHubアカウントなしでデプロイする場合（Vercel CLI）
-1. 右上 **Code → Download ZIP** でコード取得（GitHubアカウント不要）  
-2. PCで解凍し、フォルダで以下を実行：
+## 🚀 最短1分！はじめ方 (Vercelデプロイ)
+
+**必要なもの**
+*   **GitHubアカウント**
+*   **Vercelアカウント** (GitHub連携で無料登録できます)
+*   **OpenAI APIキー**
+
+### ⚠️ 重要：デプロイに関する注意
+セキュリティ上、**このリポジトリはGitHub Pagesで運用しないでください**。
+必ず以下の手順で **Vercel** を利用し、APIキーは**環境変数**に設定してください。
+
+### デプロイ手順
+
+1.  下のボタンをクリックして、Vercelにプロジェクトを作成します。
+
+    [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fomochi7777%2FFlatto-AI&env=OPENAI_API_KEY)
+    *(注: 上記URLの `repository-url` は、ご自身のGitHubリポジトリのURLに書き換えてください)*
+
+2.  Vercelの画面が開いたら、指示に従ってリポジトリ名などを決定します。
+
+3.  **Environment Variables（環境変数）**の欄に、取得しておいたあなたの `OPENAI_API_KEY` を貼り付けます。
+
+4.  `Deploy` ボタンを押せば完了です！数分であなた専用のチャットURLが発行されます。
+
+---
+
+## 使い方
+
+デプロイが完了したら、発行されたURLにアクセスしてください。
+
+1.  右上の歯車アイコン（⚙️）をタップして設定画面を開きます。
+2.  アシスタントの名前やステータス、システムプロンプトなど、お好みの設定に変更します。
+3.  「保存」ボタンを押せば、すぐにチャットを開始できます！
+
+---
+
+## 📖 もっと詳しく知りたい方へ
+
+アシスタントのアイコン画像の変更方法や、各ファイルの詳しい解説、カスタマイズのヒントなどをnoteで公開しています。
+
+➡️ **（ここにnote記事のタイトルとURLを記載）**
+
+---
+
+<details>
+<summary>上級者向け：Vercel CLIでのデプロイ</summary>
+
+1. 右上 **Code → Download ZIP** でコードをPCに保存し、解凍します。
+2. フォルダ内でターミナル（コマンドプロンプト）を開き、以下のコマンドを実行します。
 
 ```bash
 npm i -g vercel
 vercel login
-vercel env add OPENAI_API_KEY   # OpenAIのAPIキーを入力
+vercel env add OPENAI_API_KEY   # ここでOpenAIのAPIキーを入力
 vercel --prod
 
-## デプロイ後の手順
-
-1. デプロイしたURL（PCの場合は`index.html`）をブラウザで開く
-2. 設定ボタン（⚙️）をクリックしてOpenAI APIキーを設定
-3. メッセージを入力してAIと会話できます
-
-## 設定項目
-
-- **アシスタント名**: AIアシスタントの表示名
-- **ステータステキスト**: アシスタントの状態表示
-- **APIキー**: OpenAI APIキー（必須）
-- **モデル**: 使用するOpenAIモデル（GPT-4o Latest推奨）
-- **システムプロンプト**: AIアシスタントの性格や役割を定義
-- **アバター画像**: アシスタントのアイコン画像
-
-## 技術仕様
-
-- **フロントエンド**: HTML5, CSS3, Vanilla JavaScript
-- **API連携**: OpenAI Chat Completions API
-- **データ保存**: localStorage
-- **対応ブラウザ**: Safari iOS16+, Chrome Android, Chromium Desktop
-
-## ライセンス
-
-このプロジェクトはMITライセンスの下で公開されています。
-
-
----
-
-**注意**: OpenAI APIキーは安全に管理し、他人と共有しないでください。
+<details>
+ライセンス
+このプロジェクトはMITライセンスです。

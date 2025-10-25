@@ -270,14 +270,20 @@ export default async function handler(req, res) {
   }
   if (req.method !== 'POST') return res.status(405).end();
 
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) return res.status(500).json({ error: 'OPENAI_API_KEY is not set' });
+  const body = req.body || {};
+　const { messages = [], model = 'gpt-4o-mini', systemPrompt, apiKey } = body;
+　// BYOKが来ていればそれを、なければ環境変数を使う
+  const key = apiKey || process.env.OPENAI_API_KEY;  
+if (!key) return res.status(500).json({ error: 'OPENAI_API_KEY is not set' });
 
-  const { messages, model = 'gpt-4o-mini' } = req.body || {};
+  // systemPrompt があれば system ロールを先頭に付与
+  const finalMessages = systemPrompt
+  ? [{ role: 'system', content: String(systemPrompt) }, ...messages]
+  : messages;
   const r = await fetch('https://api.openai.com/v1/chat/completions', {
     method:'POST',
     headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${key}` },
-    body: JSON.stringify({ model, messages })
+    body: JSON.stringify({ model, messages: finalMessages })
   });
   res.status(r.status).json(await r.json());
 }
@@ -1360,7 +1366,7 @@ html.byok .byok-feature {
 
 スマートフォン向けチャットUIアプリケーションです。（PCからでももちろん操作可能）
 Open AIのAPIを使用する前提のUIです。（API利用には利用料金がかかりますので注意してください）
-APIをさくっと使ってみたい方におすすめです！改変などご自由にどうぞ！
+APIをさくっと使ってみたい方におすすめです！改変などご自由にどうぞ
 
 ## 特徴
 
@@ -1389,6 +1395,10 @@ APIをさくっと使ってみたい方におすすめです！改変などご�
 
 > セキュリティ上の理由で **GitHub Pages では動作させないでください**。  
 > OpenAIのAPIキーが公開されます。必ず Vercel でデプロイし、キーは**環境変数**に設定してください。
+
+## デモページ（APIは使用できません）
+
+https://omochi7777.github.io/Flatto-AI/?demo=1
 
 ---
 
@@ -1734,10 +1744,10 @@ vercel --prod
         content: message.content,
       }));
 
-    if (!window.__DEMO__ && !window.__BYOK__ && !state.config.apiKey) {
-       const fallback = pickAssistantReply(userContent);
-       playFallbackAnimation(tracker.messageId, fallback);
-       state.pendingAssistant = null;
+      if (window.__BYOK__ && !state.config.apiKey) {
+        const fallback = pickAssistantReply(userContent);
+        playFallbackAnimation(tracker.messageId, fallback);
+        state.pendingAssistant = null;
        return;
     }
 
