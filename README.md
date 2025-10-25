@@ -24,7 +24,38 @@ APIをさくっと使ってみたい方におすすめです！改変なご自�
 
 ## 使用方法
 
-1. `index.html`をブラウザで開く
+## ✅ はじめに（必要なもの）
+- いずれかの方法でデプロイします。**最短は「A. ワンクリック」**です。
+  - A. ワンクリック：**GitHubアカウント** + **Vercelアカウント**（無料プランでOK）
+  - B. GitHubなし：Vercelアカウント + PC + Vercel CLI
+  - C. デモ：APIなしのモックでUIだけ試す
+
+> セキュリティ上の理由で **GitHub Pages では動作させないでください**。  
+> OpenAIのAPIキーが公開されます。必ず Vercel でデプロイし、キーは**環境変数**に設定してください。
+
+---
+
+## A.（推奨）ワンクリックでデプロイ
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/<YOUR>/<REPO>&project-name=flatto-ai&repository-name=flatto-ai&env=OPENAI_API_KEY&envDescription=Your%20OpenAI%20API%20Key)
+
+1. ボタンを押す → （GitHub未所持なら）**その場で無料作成** → Vercelに接続  
+2. `OPENAI_API_KEY` を入力してデプロイ  
+3. できたURLにアクセスして完了
+
+---
+
+## B. GitHubアカウントなしでデプロイ（Vercel CLI）
+1. 右上 **Code → Download ZIP** でコード取得（GitHubアカウント不要）  
+2. PCで解凍し、フォルダで以下を実行：
+
+```bash
+npm i -g vercel
+vercel login
+vercel env add OPENAI_API_KEY   # OpenAIのAPIキーを入力
+vercel --prod
+
+
+
 2. 設定ボタン（⚙️）をクリックしてOpenAI APIキーを設定
 3. メッセージを入力してAIアシスタントと会話開始
 
