@@ -4,8 +4,8 @@
   const STORAGE_KEY = 'freshchat-thread';
   const CONFIG_KEY = 'freshchat-config';
   const DEFAULT_SYSTEM_PROMPT =
-    'あなたはUI設計を手伝う親しみやすいアシスタントです。常に日本語で、明るく前向きな口調で丁寧に回答してください。';
-  const SUPPORTED_MODELS = ['gpt-4o-latest', 'gpt-4o-mini', 'gpt-4.1'];
+    'あなたは親切なAIアシスタントです。常に日本語で、明るく前向きな口調で丁寧に回答してください。';
+  const SUPPORTED_MODELS = ['gpt-4o-mini', 'gpt-4.1'];
   const MAX_AVATAR_FILE_SIZE = 1024 * 1024; // 1MB
   const MAX_AVATAR_DIMENSION = 256;
   const MIN_AVATAR_DIMENSION = 48;
@@ -25,11 +25,11 @@
     cleared: 'アップロード画像をクリアしました。保存すると反映されます。',
   };
   const DEFAULT_CONFIG = {
-    assistantName: 'Aeris',
-    assistantStatus: 'いつでも相談できます',
+    assistantName: 'ふらっと',
+    assistantStatus: 'こんにちは',
     apiKey: '',
     systemPrompt: DEFAULT_SYSTEM_PROMPT,
-    model: 'gpt-4o-latest',
+    model: 'gpt-4o-mini',
     avatarUrl: '',
     avatarData: '',
   };
@@ -72,10 +72,10 @@
   const assistantProfile = {
     name: DEFAULT_CONFIG.assistantName,
     cannedReplies: [
-      '了解しました。次に進めたい内容があれば教えてください。',
-      'チャット欄のベースは整いました。続いてスレッド一覧を整えましょうか？',
-      '気になる要件があれば、いつでも気軽に聞いてくださいね。',
-      'いい感じですね！このまま明るいトーンで磨き込んでいきましょう。',
+      '何かお手伝いできることがあれば、気軽に教えてくださいね。',
+      '最近どうですか？何か気になることがあればお話ししましょう！',
+      '困ったことがあれば、いつでも頼ってくださいね！',
+      'いい感じですね！この調子で楽しくやっていきましょう！',
     ],
   };
 
@@ -267,7 +267,7 @@
     const assistantMessage = createMessage('assistant', '');
     appendMessage(assistantMessage, { persist: false });
     setTypingState(assistantMessage.id, true);
-    setMessageStatus(assistantMessage.id, `${assistantProfile.name}・生成中`);
+    setMessageStatus(assistantMessage.id, `${assistantProfile.name}・考え中`);
 
     const tracker = {
       messageId: assistantMessage.id,
@@ -528,7 +528,7 @@
     }
 
     if (normalized.includes('次') || normalizedLower.includes('next')) {
-      return '次のステップとしてスレッド一覧のUIを準備しておくとスムーズです。';
+      return '次は何をしましょうか？お気軽にお知らせください！';
     }
 
     const index = Math.floor(Math.random() * assistantProfile.cannedReplies.length);

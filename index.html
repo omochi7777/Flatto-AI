@@ -64,8 +64,8 @@
             <span class="avatar-initial">A</span>
           </div>
           <div class="identity">
-            <span class="name">Aeris</span>
-            <span class="status">いつでも相談できます</span>
+            <span class="name">ふらっと</span>
+            <span class="status">こんにちは</span>
           </div>
         </div>
         <button
@@ -137,7 +137,7 @@
           <header class="settings-header">
             <div>
               <h2 id="settings-title">設定</h2>
-              <p id="settings-description">チャットの動作とアシスタントの情報を調整します。</p>
+              <p id="settings-description">チャットの動作とAIの情報を調整します。</p>
             </div>
             <button class="settings-close icon-button" type="button" data-action="close-settings" aria-label="設定を閉じる">
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -147,7 +147,7 @@
           </header>
           <form class="settings-form" autocomplete="off">
             <fieldset class="settings-section">
-              <legend>アシスタント情報</legend>
+              <legend>AIの情報</legend>
               <label class="field">
                 <span class="field-label">表示名</span>
                 <input type="text" name="assistantName" placeholder="Aeris" value="Aeris" />
@@ -183,8 +183,7 @@
               <label class="field">
                 <span class="field-label">モデル</span>
                 <select name="model">
-                  <option value="gpt-4o-latest" selected>GPT-4o Latest</option>
-                  <option value="gpt-4o-mini">GPT-4o mini</option>
+                  <option value="gpt-4o-mini" selected>GPT-4o mini</option>
                   <option value="gpt-4.1">GPT-4.1</option>
                 </select>
                 <small class="field-support">実際に呼び出すOpenAIモデルを選択します。</small>
@@ -194,8 +193,8 @@
                 <textarea
                   name="systemPrompt"
                   rows="3"
-                  placeholder="アシスタントに求めるトーンやルール"
-                >あなたはUI設計を手伝う親しみやすいアシスタントです。常に日本語で、明るく前向きな口調で丁寧に回答してください。</textarea>
+                  placeholder="AIの性格や口調など"
+                >あなたは親切なAIアシスタントです。常に日本語で、明るく前向きな口調で丁寧に回答してください。</textarea>
               </label>
             </fieldset>
             <div class="settings-actions">
@@ -217,7 +216,7 @@
           id="message-input"
           name="message"
           rows="1"
-          placeholder="聞きたいことを書いてください…"
+          placeholder="メッセージを入力..."
           maxlength="2000"
           required
         ></textarea>
