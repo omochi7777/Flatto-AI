@@ -179,6 +179,11 @@
     }
     avatarClearButton?.addEventListener('click', clearAvatarSelection);
 
+    const themeSelect = settingsForm?.elements.namedItem('theme');
+    if (themeSelect) {
+      themeSelect.addEventListener('change', handleThemePreview);
+    }
+
     applyDefaultAvatarStatus();
     exposeFreshchatApi();
   }
@@ -1208,6 +1213,13 @@
     applyConfigToUI();
     saveConfig();
     closeSettings();
+  }
+
+  function handleThemePreview(event) {
+    const selectedTheme = event.target.value;
+    if (['daybreak', 'nightfall', 'sakura', 'forest'].includes(selectedTheme)) {
+      app.dataset.theme = selectedTheme;
+    }
   }
 
   function renderThreadList() {
