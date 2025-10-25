@@ -154,10 +154,10 @@
               </label>
               <label class="field">
                 <span class="field-label">ステータステキスト</span>
-                <input type="text" name="assistantStatus" placeholder="&#x3044;&#x3064;&#x3067;&#x3082;&#x76F8;&#x8AC7;&#x3067;&#x304D;&#x307E;&#x3059;" value="&#x3044;&#x3064;&#x3067;&#x3082;&#x76F8;&#x8AC7;&#x3067;&#x304D;&#x307E;&#x3059;" />
+                <input type="text" name="assistantStatus" placeholder="いつでも相談できます" value="いつでも相談できます" />
               </label>
               <label class="field">
-                <span class="field-label">&#x30ED;&#x30FC;&#x30AB;&#x30EB;&#x753B;&#x50CF;&#x30A2;&#x30C3;&#x30D7;&#x30ED;&#x30FC;&#x30C9;</span>
+                <span class="field-label">ローカル画像アップロード</span>
                 <input type="file" name="avatarFile" accept="image/*" />
                 <small class="field-support">
                   ファイルは1MB以下のPNG/JPEG/SVGを使用してください。
@@ -169,9 +169,9 @@
               </label>
             </fieldset>
             <fieldset class="settings-section">
-              <legend>OpenAI &#x63A5;&#x7D9A;</legend>
+              <legend>OpenAI 接続</legend>
               <label class="field byok-feature">
-                <span class="field-label">API &#x30AD;&#x30FC;</span>
+                <span class="field-label">API キー</span>
                 <input
                   type="password"
                   name="apiKey"
@@ -181,7 +181,7 @@
                 <small class="field-support">ブラウザのローカルストレージにのみ保存されます。</small>
               </label>
               <label class="field">
-                <span class="field-label">&#x30E2;&#x30C7;&#x30EB;</span>
+                <span class="field-label">モデル</span>
                 <select name="model">
                   <option value="gpt-4o-latest" selected>GPT-4o Latest</option>
                   <option value="gpt-4o-mini">GPT-4o mini</option>
@@ -190,12 +190,12 @@
                 <small class="field-support">実際に呼び出すOpenAIモデルを選択します。</small>
               </label>
               <label class="field">
-                <span class="field-label">&#x30B7;&#x30B9;&#x30C6;&#x30E0;&#x30D7;&#x30ED;&#x30F3;&#x30D7;&#x30C8;</span>
+                <span class="field-label">システムプロンプト</span>
                 <textarea
                   name="systemPrompt"
                   rows="3"
-                  placeholder="&#x30A2;&#x30B7;&#x30B9;&#x30BF;&#x30F3;&#x30C8;&#x306B;&#x6C42;&#x3081;&#x308B;&#x30C8;&#x30FC;&#x30F3;&#x3084;&#x30EB;&#x30FC;&#x30EB;"
-                >&#x3042;&#x306A;&#x305F;&#x306F;UI&#x8A2D;&#x8A08;&#x3092;&#x624B;&#x4F1D;&#x3046;&#x89AA;&#x3057;&#x307F;&#x3084;&#x3059;&#x3044;&#x30A2;&#x30B7;&#x30B9;&#x30BF;&#x30F3;&#x30C8;&#x3067;&#x3059;&#x3002;&#x5E38;&#x306B;&#x65E5;&#x672C;&#x8A9E;&#x3067;&#x3001;&#x660E;&#x308B;&#x304F;&#x524D;&#x5411;&#x304D;&#x306A;&#x53E3;&#x8ABF;&#x3067;&#x4E01;&#x5BE7;&#x306B;&#x56DE;&#x7B54;&#x3057;&#x3066;&#x304F;&#x3060;&#x3055;&#x3044;&#x3002;</textarea>
+                  placeholder="アシスタントに求めるトーンやルール"
+                >あなたはUI設計を手伝う親しみやすいアシスタントです。常に日本語で、明るく前向きな口調で丁寧に回答してください。</textarea>
               </label>
             </fieldset>
             <div class="settings-actions">
@@ -206,7 +206,7 @@
         </section>
       </div>
 
-      <section class="chat-thread" aria-label="&#x30C1;&#x30E3;&#x30C3;&#x30C8;&#x30B9;&#x30EC;&#x30C3;&#x30C9;">
+      <section class="chat-thread" aria-label="チャットスレッド">
         <div class="chat-empty" role="status">メッセージを送信して会話を始めましょう。</div>
         <ol class="chat-messages" aria-live="polite"></ol>
       </section>

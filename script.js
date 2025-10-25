@@ -26,7 +26,7 @@
   };
   const DEFAULT_CONFIG = {
     assistantName: 'Aeris',
-    assistantStatus: '\u3044\u3064\u3067\u3082\u76F8\u8AC7\u3067\u304D\u307E\u3059',
+    assistantStatus: 'いつでも相談できます',
     apiKey: '',
     systemPrompt: DEFAULT_SYSTEM_PROMPT,
     model: 'gpt-4o-latest',
@@ -393,7 +393,7 @@
       hour: '2-digit',
       minute: '2-digit',
     }).format(message.createdAt || Date.now());
-    return `${label}\u30FB${time}`;
+    return `${label}・${time}`;
   }
 
   function updateMessageBubble(messageId, content) {
@@ -510,7 +510,7 @@
       bubbleEl.textContent += characters[index];
       index += 1;
       const previousChar = characters[index - 1] || '';
-      const pause = /[\u3002\uFF01\uFF1F!?.]/.test(previousChar) ? 110 : 26;
+      const pause = /[。！？!?.]/.test(previousChar) ? 110 : 26;
       window.setTimeout(() => {
         window.requestAnimationFrame(tick);
       }, pause);
