@@ -827,3 +827,10 @@ body {
     opacity: 0.9;
   }
 }
+.byok-feature {
+  display: none;
+}
+
+html.byok .byok-feature {
+  display: block;
+}

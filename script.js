@@ -201,11 +201,73 @@
     requestAssistantReply(content);
   }
 
+  function playFallbackAnimation(messageId, finalText) {
+    const entry = state.messageElements.get(messageId);
+    if (!entry) {
+      finalizeMessage(messageId, finalText);
+      return;
+    }
+    runTypewriterAnimation(entry.bubble, finalText, () => {
+      finalizeMessage(messageId, finalText);
+    });
+  }
+
+  async function sendChat(messages, signal) {
+    if (window.__DEMO__) {
+      return mockChat(messages);
+    }
+
+    const modelId = SUPPORTED_MODELS.includes(state.config.model)
+      ? state.config.model
+      : DEFAULT_CONFIG.model;
+
+    const body = {
+      messages,
+      model: modelId,
+      systemPrompt: (state.config.systemPrompt || DEFAULT_SYSTEM_PROMPT).trim() || DEFAULT_SYSTEM_PROMPT,
+    };
+
+    if (window.__BYOK__) {
+      body.apiKey = state.config.apiKey;
+    }
+
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`API error: ${response.status} ${errorText}`);
+    }
+    return response.json();
+  }
+
+  async function mockChat(messages) {
+    const last = messages?.at(-1)?.content ?? '';
+    await new Promise(r => setTimeout(r, 800));
+    return {
+      choices: [
+        {
+          message: {
+            role: 'assistant',
+            content: `これはデモ応答です 👋\n入力:「${last.slice(
+              0,
+              60
+            )}」\n本番はVercelでデプロイしてね。`,
+          },
+        },
+      ],
+    };
+  }
+
   function requestAssistantReply(userContent) {
     const assistantMessage = createMessage('assistant', '');
     appendMessage(assistantMessage, { persist: false });
     setTypingState(assistantMessage.id, true);
-    setMessageStatus(assistantMessage.id, `${assistantProfile.name}\u30FB\u751F\u6210\u4E2D`);
+    setMessageStatus(assistantMessage.id, `${assistantProfile.name}・生成中`);
 
     const tracker = {
       messageId: assistantMessage.id,
@@ -221,125 +283,37 @@
         content: message.content,
       }));
 
-    if (!state.config.apiKey) {
-      const fallback = pickAssistantReply(userContent);
-      playFallbackAnimation(tracker.messageId, fallback);
-      state.pendingAssistant = null;
-      return;
+    if (!window.__DEMO__ && !window.__BYOK__ && !state.config.apiKey) {
+       const fallback = pickAssistantReply(userContent);
+       playFallbackAnimation(tracker.messageId, fallback);
+       state.pendingAssistant = null;
+       return;
     }
 
     (async () => {
       const signal = tracker.controller.signal;
-      const modelId = SUPPORTED_MODELS.includes(state.config.model)
-        ? state.config.model
-        : DEFAULT_CONFIG.model;
-      if (!SUPPORTED_MODELS.includes(state.config.model)) {
-        state.config.model = modelId;
-        saveConfig();
-      }
-      const requestBody = {
-        model: modelId,
-        messages: [
-          { role: 'system', content: (state.config.systemPrompt || DEFAULT_SYSTEM_PROMPT).trim() || DEFAULT_SYSTEM_PROMPT },
-          ...pastMessages,
-        ],
-        stream: true,
-      };
-
-      let streamedText = '';
-
       try {
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${state.config.apiKey}`,
-          },
-          body: JSON.stringify(requestBody),
-          signal,
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`API error: ${errorText}`);
+        const data = await sendChat(pastMessages, signal);
+        const content = data.choices?.[0]?.message?.content;
+        if (content) {
+          playFallbackAnimation(tracker.messageId, content);
+        } else {
+          throw new Error('No content in response');
         }
-
-        if (!response.body) {
-          throw new Error('\u5FDC\u7B54\u30B9\u30C8\u30EA\u30FC\u30E0\u304C\u5229\u7528\u3067\u304D\u307E\u305B\u3093\u3002');
-        }
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder('utf-8');
-        let buffer = '';
-
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() ?? '';
-
-          for (const rawLine of lines) {
-            const line = rawLine.trim();
-            if (!line) continue;
-            if (line === 'data: [DONE]') {
-              finalizeMessage(tracker.messageId, streamedText.trim() || streamedText);
-              state.pendingAssistant = null;
-              return;
-            }
-            if (!line.startsWith('data:')) continue;
-
-            const payload = line.slice(5).trim();
-            if (!payload) continue;
-
-            const parsed = JSON.parse(payload);
-            const delta = parsed.choices?.[0]?.delta;
-            if (!delta) continue;
-
-            const segments = Array.isArray(delta.content) ? delta.content : [delta.content];
-            for (const segment of segments) {
-              if (!segment) continue;
-              const text =
-                typeof segment === 'string'
-                  ? segment
-                  : typeof segment.text === 'string'
-                  ? segment.text
-                  : '';
-              if (!text) continue;
-              streamedText += text;
-              updateMessageBubble(tracker.messageId, streamedText);
-              scrollToBottom('auto');
-            }
-          }
-        }
-
-        finalizeMessage(tracker.messageId, streamedText.trim() || streamedText);
       } catch (error) {
         if (signal.aborted) {
-          const partial = streamedText.trim() || '\uFF08\u5FDC\u7B54\u306F\u4E2D\u65AD\u3055\u308C\u307E\u3057\u305F\uFF09';
+          const partial = '（応答は中断されました）';
           finalizeMessage(tracker.messageId, partial);
           return;
         }
         console.error('Assistant request failed:', error);
         const failure =
-          '\u3059\u307F\u307E\u305B\u3093\u3001\u5FDC\u7B54\u306E\u53D6\u5F97\u306B\u5931\u6557\u3057\u307E\u3057\u305F\u3002\u6642\u9593\u3092\u7F6E\u3044\u3066\u304B\u3089\u518D\u8A66\u884C\u3057\u3066\u304F\u3060\u3055\u3044\u3002';
+          'すみません、応答の取得に失敗しました。時間をおいてから再試行してください。';
         finalizeMessage(tracker.messageId, failure);
       } finally {
         state.pendingAssistant = null;
       }
     })();
-  }
-
-  function playFallbackAnimation(messageId, finalText) {
-    const entry = state.messageElements.get(messageId);
-    if (!entry) {
-      finalizeMessage(messageId, finalText);
-      return;
-    }
-    runTypewriterAnimation(entry.bubble, finalText, () => {
-      finalizeMessage(messageId, finalText);
-    });
   }
 
   function cancelPendingAssistant() {

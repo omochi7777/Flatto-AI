@@ -4,6 +4,41 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>FreshChat UI</title>
+    <script>
+      (() => {
+        const u = new URL(location.href);
+        const DEMO = u.searchParams.get('demo') === '1';
+        const BYOK = u.searchParams.get('byok') === '1';
+        const isPages = /\.github\.io$/.test(location.hostname) || location.hostname === 'github.io';
+        window.__DEMO__ = DEMO;
+        window.__BYOK__ = BYOK;
+
+        if (DEMO) {
+          const _fetch = window.fetch.bind(window);
+          window.fetch = (input, init) => {
+            const s = String(input);
+            if (s.includes('/api') || s.includes('openai.com')) {
+              console.warn('Demo mode blocks API calls to:', s);
+              return Promise.reject(new Error('Demo mode blocks API calls'));
+            }
+            return _fetch(input, init);
+          };
+          document.documentElement.classList.add('demo');
+        }
+
+        if(BYOK){
+          document.documentElement.classList.add('byok');
+        }
+
+        if (isPages && !DEMO) {
+          addEventListener('DOMContentLoaded', () => {
+            document.body.innerHTML =
+              '<h2>🚫 GitHub Pages はデモ専用</h2><p><code>?demo=1</code> を付けてUIのみ試せます。本番はVercelへ。</p>';
+          });
+          throw new Error('Blocked on GitHub Pages (non-demo)');
+        }
+      })();
+    </script>
     <link rel="stylesheet" href="styles.css">
     <script defer src="script.js"></script>
   </head>
@@ -132,7 +167,7 @@
             </fieldset>
             <fieldset class="settings-section">
               <legend>OpenAI &#x63A5;&#x7D9A;</legend>
-              <label class="field">
+              <label class="field byok-feature">
                 <span class="field-label">API &#x30AD;&#x30FC;</span>
                 <input
                   type="password"
