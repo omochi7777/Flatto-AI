@@ -31,6 +31,7 @@
     model: 'gpt-4o-mini',
     avatarUrl: '',
     avatarData: '',
+    theme: 'daybreak',
   };
 
   const app = document.querySelector('.app');
@@ -780,6 +781,10 @@
           typeof parsed.avatarData === 'string'
             ? parsed.avatarData
             : DEFAULT_CONFIG.avatarData,
+        theme:
+          typeof parsed.theme === 'string' && ['daybreak', 'nightfall'].includes(parsed.theme)
+            ? parsed.theme
+            : DEFAULT_CONFIG.theme,
       };
     } catch (error) {
       console.warn('Unable to load config:', error);
@@ -796,6 +801,7 @@
         model: state.config.model,
         avatarUrl: state.config.avatarUrl,
         avatarData: state.config.avatarData,
+        theme: state.config.theme,
       });
       window.localStorage.setItem(CONFIG_KEY, payload);
     } catch (error) {
@@ -831,6 +837,7 @@
     updateThreadNameDisplay();
     assistantProfile.name = state.config.assistantName || DEFAULT_CONFIG.assistantName;
     updateAvatarDisplay();
+    app.dataset.theme = state.config.theme || DEFAULT_CONFIG.theme;
   }
 
   function updateThreadNameDisplay() {
@@ -1155,12 +1162,13 @@
 
   function populateSettingsForm() {
     if (!settingsForm) return;
-    const { assistantName, apiKey, systemPrompt, model, avatarUrl } = state.config;
+    const { assistantName, apiKey, systemPrompt, model, avatarUrl, theme } = state.config;
     const nameInput = settingsForm.elements.namedItem('assistantName');
     const apiKeyInput = settingsForm.elements.namedItem('apiKey');
     const systemPromptInput = settingsForm.elements.namedItem('systemPrompt');
     const modelInput = settingsForm.elements.namedItem('model');
     const avatarInput = settingsForm.elements.namedItem('avatarUrl');
+    const themeInput = settingsForm.elements.namedItem('theme');
 
     if (nameInput) nameInput.value = assistantName || '';
     if (apiKeyInput) apiKeyInput.value = apiKey || '';
@@ -1170,6 +1178,10 @@
       modelInput.value = currentModel;
     }
     if (avatarInput) avatarInput.value = avatarUrl || '';
+    if (themeInput) {
+      const currentTheme = ['daybreak', 'nightfall'].includes(theme) ? theme : DEFAULT_CONFIG.theme;
+      themeInput.value = currentTheme;
+    }
     resetAvatarDraft();
   }
 
@@ -1188,6 +1200,10 @@
       : DEFAULT_CONFIG.model;
     state.config.avatarUrl = (formData.get('avatarUrl') || '').toString().trim();
     state.config.avatarData = state.draftAvatarData || '';
+    const selectedTheme = (formData.get('theme') || '').toString().trim();
+    state.config.theme = ['daybreak', 'nightfall'].includes(selectedTheme)
+      ? selectedTheme
+      : DEFAULT_CONFIG.theme;
 
     applyConfigToUI();
     saveConfig();
