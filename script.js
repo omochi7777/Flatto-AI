@@ -26,7 +26,6 @@
   };
   const DEFAULT_CONFIG = {
     assistantName: 'ふらっと',
-    assistantStatus: 'こんにちは',
     apiKey: '',
     systemPrompt: DEFAULT_SYSTEM_PROMPT,
     model: 'gpt-4o-mini',
@@ -96,6 +95,8 @@
     },
     draftAvatarData: '',
     avatarReadToken: 0,
+    longPressTimer: null,
+    longPressTarget: null,
   };
 
   assistantProfile.name = state.config.assistantName || DEFAULT_CONFIG.assistantName;
@@ -151,12 +152,13 @@
       const threadId = button.dataset.threadId;
       if (threadId) {
         setActiveThread(threadId, { scrollBehavior: 'auto' });
-        if (!textareaEl.disabled) {
-          textareaEl.focus();
-        }
       }
-      closeDrawer();
     });
+
+    threadListEl?.addEventListener('touchstart', handleThreadTouchStart, { passive: false });
+    threadListEl?.addEventListener('touchend', handleThreadTouchEnd);
+    threadListEl?.addEventListener('touchcancel', handleThreadTouchEnd);
+    threadListEl?.addEventListener('dblclick', handleThreadDoubleClick);
 
     if (settingsToggle) {
       settingsToggle.addEventListener('click', () => {
@@ -745,6 +747,7 @@
     state.messages = thread.messages;
     renderAllMessages(scrollBehavior);
     updateEmptyState();
+    updateThreadNameDisplay();
     saveMessages();
   }
 
@@ -759,10 +762,6 @@
           typeof parsed.assistantName === 'string' && parsed.assistantName.trim()
             ? parsed.assistantName.trim()
             : DEFAULT_CONFIG.assistantName,
-        assistantStatus:
-          typeof parsed.assistantStatus === 'string' && parsed.assistantStatus.trim()
-            ? parsed.assistantStatus.trim()
-            : DEFAULT_CONFIG.assistantStatus,
         apiKey: typeof parsed.apiKey === 'string' ? parsed.apiKey : DEFAULT_CONFIG.apiKey,
         systemPrompt:
           typeof parsed.systemPrompt === 'string' && parsed.systemPrompt.trim()
@@ -791,7 +790,6 @@
     try {
       const payload = JSON.stringify({
         assistantName: state.config.assistantName,
-        assistantStatus: state.config.assistantStatus,
         apiKey: state.config.apiKey,
         systemPrompt: state.config.systemPrompt,
         model: state.config.model,
@@ -829,9 +827,18 @@
 
   function applyConfigToUI() {
     profileNameEl.textContent = state.config.assistantName || DEFAULT_CONFIG.assistantName;
-    profileStatusEl.textContent = state.config.assistantStatus || DEFAULT_CONFIG.assistantStatus;
+    updateThreadNameDisplay();
     assistantProfile.name = state.config.assistantName || DEFAULT_CONFIG.assistantName;
     updateAvatarDisplay();
+  }
+
+  function updateThreadNameDisplay() {
+    const thread = getActiveThread();
+    if (thread) {
+      profileStatusEl.textContent = thread.title || MAIN_THREAD_TITLE;
+    } else {
+      profileStatusEl.textContent = 'スレッドなし';
+    }
   }
 
   function updateAvatarDisplay(previewSource) {
@@ -1147,16 +1154,14 @@
 
   function populateSettingsForm() {
     if (!settingsForm) return;
-    const { assistantName, assistantStatus, apiKey, systemPrompt, model, avatarUrl } = state.config;
+    const { assistantName, apiKey, systemPrompt, model, avatarUrl } = state.config;
     const nameInput = settingsForm.elements.namedItem('assistantName');
-    const statusInput = settingsForm.elements.namedItem('assistantStatus');
     const apiKeyInput = settingsForm.elements.namedItem('apiKey');
     const systemPromptInput = settingsForm.elements.namedItem('systemPrompt');
     const modelInput = settingsForm.elements.namedItem('model');
     const avatarInput = settingsForm.elements.namedItem('avatarUrl');
 
     if (nameInput) nameInput.value = assistantName || '';
-    if (statusInput) statusInput.value = assistantStatus || '';
     if (apiKeyInput) apiKeyInput.value = apiKey || '';
     if (systemPromptInput) systemPromptInput.value = systemPrompt || DEFAULT_SYSTEM_PROMPT;
     if (modelInput) {
@@ -1173,8 +1178,6 @@
     const formData = new FormData(settingsForm);
     state.config.assistantName =
       (formData.get('assistantName') || '').toString().trim() || DEFAULT_CONFIG.assistantName;
-    state.config.assistantStatus =
-      (formData.get('assistantStatus') || '').toString().trim() || DEFAULT_CONFIG.assistantStatus;
     state.config.apiKey = (formData.get('apiKey') || '').toString().trim();
     state.config.systemPrompt =
       (formData.get('systemPrompt') || '').toString().trim() || DEFAULT_SYSTEM_PROMPT;
@@ -1263,10 +1266,6 @@
     };
     state.threads.push(newThread);
     setActiveThread(newThread.id, { scrollBehavior: 'auto' });
-    closeDrawer();
-    if (!textareaEl.disabled) {
-      textareaEl.focus();
-    }
   }
 
   function handleDeleteThread(threadId) {
@@ -1304,6 +1303,70 @@
       textareaEl.value = '';
       updateSendButton();
     }
+  }
+
+  function handleThreadTouchStart(event) {
+    const threadItem = event.target.closest('.thread-item');
+    if (!threadItem) return;
+    const deleteButton = event.target.closest('[data-action="delete-thread"]');
+    if (deleteButton) return;
+
+    state.longPressTarget = threadItem;
+    state.longPressTimer = window.setTimeout(() => {
+      if (state.longPressTarget === threadItem) {
+        const threadId = threadItem.dataset.threadId;
+        if (threadId) {
+          showRenameThreadDialog(threadId);
+        }
+      }
+    }, LONG_PRESS_DURATION);
+  }
+
+  function handleThreadTouchEnd() {
+    clearLongPressTimer();
+  }
+
+  function handleThreadDoubleClick(event) {
+    const threadItem = event.target.closest('.thread-item');
+    if (!threadItem) return;
+    const deleteButton = event.target.closest('[data-action="delete-thread"]');
+    if (deleteButton) return;
+
+    event.preventDefault();
+    const threadId = threadItem.dataset.threadId;
+    if (threadId) {
+      showRenameThreadDialog(threadId);
+    }
+  }
+
+  function clearLongPressTimer() {
+    if (state.longPressTimer) {
+      window.clearTimeout(state.longPressTimer);
+      state.longPressTimer = null;
+    }
+    state.longPressTarget = null;
+  }
+
+  function showRenameThreadDialog(threadId) {
+    const thread = getThreadById(threadId);
+    if (!thread) return;
+
+    const currentTitle = thread.title || MAIN_THREAD_TITLE;
+    const newTitle = window.prompt('スレッド名を入力してください:', currentTitle);
+    
+    if (newTitle === null) return; // キャンセル
+    
+    const trimmedTitle = newTitle.trim();
+    if (!trimmedTitle) {
+      alert('スレッド名を空にすることはできません。');
+      return;
+    }
+
+    thread.title = trimmedTitle;
+    thread.updatedAt = Date.now();
+    saveMessages();
+    renderThreadList();
+    updateThreadNameDisplay();
   }
 
   function openDrawer() {
@@ -1362,6 +1425,27 @@
     }
     state.lastFocused.settings = null;
     resetAvatarDraft();
+  }
+
+  function handleThreadTouchStart(event) {
+    const threadItem = event.target.closest('.thread-item');
+    if (!threadItem) return;
+    const deleteButton = event.target.closest('[data-action="delete-thread"]');
+    if (deleteButton) return;
+
+    state.longPressTarget = threadItem;
+    state.longPressTimer = window.setTimeout(() => {
+      if (state.longPressTarget === threadItem) {
+        const threadId = threadItem.dataset.threadId;
+        if (threadId) {
+          showRenameThreadDialog(threadId);
+        }
+      }
+    }, LONG_PRESS_DURATION);
+  }
+
+  function handleThreadTouchEnd() {
+    clearLongPressTimer();
   }
 
   function handleGlobalKeydown(event) {
@@ -1448,12 +1532,9 @@
       getHistory() {
         return [...getActiveThreadMessages()];
       },
-      setAssistantProfile({ name, status, systemPrompt, model, avatarUrl, avatarData }) {
+      setAssistantProfile({ name, systemPrompt, model, avatarUrl, avatarData }) {
         if (typeof name === 'string' && name.trim()) {
           state.config.assistantName = name.trim();
-        }
-        if (typeof status === 'string' && status.trim()) {
-          state.config.assistantStatus = status.trim();
         }
         if (typeof systemPrompt === 'string' && systemPrompt.trim()) {
           state.config.systemPrompt = systemPrompt.trim();
