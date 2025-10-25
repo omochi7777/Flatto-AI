@@ -782,7 +782,7 @@
             ? parsed.avatarData
             : DEFAULT_CONFIG.avatarData,
         theme:
-          typeof parsed.theme === 'string' && ['daybreak', 'nightfall'].includes(parsed.theme)
+          typeof parsed.theme === 'string' && ['daybreak', 'nightfall', 'sakura', 'forest'].includes(parsed.theme)
             ? parsed.theme
             : DEFAULT_CONFIG.theme,
       };
@@ -1179,7 +1179,7 @@
     }
     if (avatarInput) avatarInput.value = avatarUrl || '';
     if (themeInput) {
-      const currentTheme = ['daybreak', 'nightfall'].includes(theme) ? theme : DEFAULT_CONFIG.theme;
+      const currentTheme = ['daybreak', 'nightfall', 'sakura', 'forest'].includes(theme) ? theme : DEFAULT_CONFIG.theme;
       themeInput.value = currentTheme;
     }
     resetAvatarDraft();
@@ -1201,7 +1201,7 @@
     state.config.avatarUrl = (formData.get('avatarUrl') || '').toString().trim();
     state.config.avatarData = state.draftAvatarData || '';
     const selectedTheme = (formData.get('theme') || '').toString().trim();
-    state.config.theme = ['daybreak', 'nightfall'].includes(selectedTheme)
+    state.config.theme = ['daybreak', 'nightfall', 'sakura', 'forest'].includes(selectedTheme)
       ? selectedTheme
       : DEFAULT_CONFIG.theme;
 

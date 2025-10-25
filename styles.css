@@ -986,3 +986,249 @@ html.byok .byok-feature {
 [data-theme="nightfall"] .drawer-header h2 {
   color: #ffffff;
 }
+
+[data-theme="sakura"] {
+  color-scheme: light;
+  --app-background: linear-gradient(160deg, #ffe0f0 0%, #fff5f8 60%, #ffe8f5 100%);
+  --surface: rgba(255, 240, 250, 0.85);
+  --surface-strong: rgba(255, 245, 252, 0.95);
+  --border-soft: rgba(255, 105, 180, 0.18);
+  --shadow-soft: 0 18px 40px -24px rgba(255, 105, 180, 0.35);
+  --text-primary: #5a1a3a;
+  --text-secondary: rgba(90, 26, 58, 0.65);
+  --accent: #ff69b4;
+  --accent-strong: #ff1493;
+  --assistant-bubble: #ffffff;
+  --assistant-border: rgba(255, 105, 180, 0.25);
+  --user-bubble: linear-gradient(135deg, #ffb3d9 0%, #ff69b4 100%);
+  --user-text: #5a1a3a;
+}
+
+[data-theme="sakura"] .topbar,
+[data-theme="sakura"] .chat-drawer,
+[data-theme="sakura"] .settings-modal,
+[data-theme="sakura"] .composer {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+}
+
+[data-theme="sakura"] .chat-thread {
+  background: var(--surface-strong);
+  border: 1px solid var(--border-soft);
+}
+
+[data-theme="sakura"] .chat-thread::before {
+  background: radial-gradient(120% 65% at 50% 0%, rgba(255, 105, 180, 0.15) 0%, transparent 65%);
+}
+
+[data-theme="sakura"] .icon-button,
+[data-theme="sakura"] .drawer-close {
+  background: rgba(255, 240, 250, 0.7);
+  color: var(--accent-strong);
+  box-shadow: inset 0 0 0 1px rgba(255, 105, 180, 0.2);
+}
+
+[data-theme="sakura"] .icon-button svg,
+[data-theme="sakura"] .drawer-close svg {
+  stroke: var(--accent-strong);
+}
+
+[data-theme="sakura"] .send-button {
+  background: linear-gradient(135deg, #ff69b4 0%, #ff1493 100%);
+  box-shadow: 0 12px 28px -18px rgba(255, 20, 147, 0.8);
+}
+
+[data-theme="sakura"] .primary-button {
+  background: linear-gradient(135deg, #ff69b4 0%, #ff1493 100%);
+  box-shadow: 0 14px 32px -22px rgba(255, 20, 147, 0.8);
+}
+
+[data-theme="sakura"] .primary-button:hover {
+  box-shadow: 0 20px 42px -24px rgba(255, 20, 147, 0.75);
+}
+
+[data-theme="sakura"] .new-thread-button {
+  border-color: rgba(255, 105, 180, 0.3);
+  background: rgba(255, 240, 250, 0.8);
+  color: var(--accent-strong);
+}
+
+[data-theme="sakura"] .new-thread-button svg {
+  stroke: var(--accent-strong);
+}
+
+[data-theme="sakura"] .thread-item {
+  border-color: rgba(255, 105, 180, 0.2);
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 16px 34px -30px rgba(255, 105, 180, 0.6);
+}
+
+[data-theme="sakura"] .thread-item.is-active {
+  border-color: rgba(255, 105, 180, 0.45);
+  background: rgba(255, 240, 250, 0.95);
+  box-shadow: 0 24px 46px -28px rgba(255, 105, 180, 0.7);
+}
+
+[data-theme="sakura"] .thread-item-delete {
+  background: rgba(255, 240, 250, 0.9);
+  color: var(--accent-strong);
+  box-shadow: inset 0 0 0 1px rgba(255, 105, 180, 0.25);
+}
+
+[data-theme="sakura"] .thread-item-delete:hover {
+  box-shadow: 0 12px 26px -20px rgba(255, 105, 180, 0.6), inset 0 0 0 1px rgba(255, 105, 180, 0.35);
+}
+
+[data-theme="sakura"] .chat-message[data-role="assistant"] .chat-bubble {
+  border-color: rgba(255, 105, 180, 0.25);
+  box-shadow: 0 18px 26px -22px rgba(255, 105, 180, 0.45);
+  color: var(--text-primary);
+}
+
+[data-theme="sakura"] .chat-message[data-role="user"] .chat-bubble {
+  box-shadow: 0 18px 24px -20px rgba(255, 105, 180, 0.6);
+}
+
+[data-theme="sakura"] .identity .name {
+  color: var(--accent-strong);
+}
+
+[data-theme="sakura"] .avatar {
+  background: linear-gradient(145deg, #ffb3d9, #ff69b4);
+  box-shadow: 0 6px 18px -10px rgba(255, 105, 180, 0.7);
+}
+
+[data-theme="sakura"] .ghost-button {
+  border-color: rgba(255, 105, 180, 0.25);
+  background: rgba(255, 240, 250, 0.75);
+}
+
+[data-theme="sakura"] .field input,
+[data-theme="sakura"] .field textarea,
+[data-theme="sakura"] .field select {
+  border-color: rgba(255, 105, 180, 0.2);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+[data-theme="forest"] {
+  color-scheme: light;
+  --app-background: linear-gradient(160deg, #e8f5e9 0%, #f1f8f4 60%, #e0f2e9 100%);
+  --surface: rgba(240, 250, 245, 0.85);
+  --surface-strong: rgba(245, 252, 248, 0.95);
+  --border-soft: rgba(76, 175, 80, 0.18);
+  --shadow-soft: 0 18px 40px -24px rgba(46, 125, 50, 0.35);
+  --text-primary: #1b5e20;
+  --text-secondary: rgba(27, 94, 32, 0.65);
+  --accent: #66bb6a;
+  --accent-strong: #388e3c;
+  --assistant-bubble: #ffffff;
+  --assistant-border: rgba(76, 175, 80, 0.25);
+  --user-bubble: linear-gradient(135deg, #81c784 0%, #66bb6a 100%);
+  --user-text: #1b5e20;
+}
+
+[data-theme="forest"] .topbar,
+[data-theme="forest"] .chat-drawer,
+[data-theme="forest"] .settings-modal,
+[data-theme="forest"] .composer {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+}
+
+[data-theme="forest"] .chat-thread {
+  background: var(--surface-strong);
+  border: 1px solid var(--border-soft);
+}
+
+[data-theme="forest"] .chat-thread::before {
+  background: radial-gradient(120% 65% at 50% 0%, rgba(76, 175, 80, 0.12) 0%, transparent 65%);
+}
+
+[data-theme="forest"] .icon-button,
+[data-theme="forest"] .drawer-close {
+  background: rgba(240, 250, 245, 0.7);
+  color: var(--accent-strong);
+  box-shadow: inset 0 0 0 1px rgba(76, 175, 80, 0.2);
+}
+
+[data-theme="forest"] .icon-button svg,
+[data-theme="forest"] .drawer-close svg {
+  stroke: var(--accent-strong);
+}
+
+[data-theme="forest"] .send-button {
+  background: linear-gradient(135deg, #66bb6a 0%, #388e3c 100%);
+  box-shadow: 0 12px 28px -18px rgba(56, 142, 60, 0.8);
+}
+
+[data-theme="forest"] .primary-button {
+  background: linear-gradient(135deg, #66bb6a 0%, #388e3c 100%);
+  box-shadow: 0 14px 32px -22px rgba(56, 142, 60, 0.8);
+}
+
+[data-theme="forest"] .primary-button:hover {
+  box-shadow: 0 20px 42px -24px rgba(56, 142, 60, 0.75);
+}
+
+[data-theme="forest"] .new-thread-button {
+  border-color: rgba(76, 175, 80, 0.3);
+  background: rgba(240, 250, 245, 0.8);
+  color: var(--accent-strong);
+}
+
+[data-theme="forest"] .new-thread-button svg {
+  stroke: var(--accent-strong);
+}
+
+[data-theme="forest"] .thread-item {
+  border-color: rgba(76, 175, 80, 0.2);
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 16px 34px -30px rgba(76, 175, 80, 0.6);
+}
+
+[data-theme="forest"] .thread-item.is-active {
+  border-color: rgba(76, 175, 80, 0.45);
+  background: rgba(240, 250, 245, 0.95);
+  box-shadow: 0 24px 46px -28px rgba(76, 175, 80, 0.7);
+}
+
+[data-theme="forest"] .thread-item-delete {
+  background: rgba(240, 250, 245, 0.9);
+  color: var(--accent-strong);
+  box-shadow: inset 0 0 0 1px rgba(76, 175, 80, 0.25);
+}
+
+[data-theme="forest"] .thread-item-delete:hover {
+  box-shadow: 0 12px 26px -20px rgba(76, 175, 80, 0.6), inset 0 0 0 1px rgba(76, 175, 80, 0.35);
+}
+
+[data-theme="forest"] .chat-message[data-role="assistant"] .chat-bubble {
+  border-color: rgba(76, 175, 80, 0.25);
+  box-shadow: 0 18px 26px -22px rgba(76, 175, 80, 0.45);
+  color: var(--text-primary);
+}
+
+[data-theme="forest"] .chat-message[data-role="user"] .chat-bubble {
+  box-shadow: 0 18px 24px -20px rgba(76, 175, 80, 0.6);
+}
+
+[data-theme="forest"] .identity .name {
+  color: var(--accent-strong);
+}
+
+[data-theme="forest"] .avatar {
+  background: linear-gradient(145deg, #81c784, #66bb6a);
+  box-shadow: 0 6px 18px -10px rgba(76, 175, 80, 0.7);
+}
+
+[data-theme="forest"] .ghost-button {
+  border-color: rgba(76, 175, 80, 0.25);
+  background: rgba(240, 250, 245, 0.75);
+}
+
+[data-theme="forest"] .field input,
+[data-theme="forest"] .field textarea,
+[data-theme="forest"] .field select {
+  border-color: rgba(76, 175, 80, 0.2);
+  background: rgba(255, 255, 255, 0.9);
+}
