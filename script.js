@@ -11,6 +11,8 @@
   const MIN_AVATAR_DIMENSION = 48;
   const MAX_AVATAR_DATA_LENGTH = 140000; // ~280KB as UTF-16, keeps storage under control
   const MAIN_THREAD_TITLE = '\u30E1\u30A4\u30F3\u30B9\u30EC\u30C3\u30C9';
+  const NEW_THREAD_TITLE_BASE = '\u30B9\u30EC\u30C3\u30C9';
+  const THREAD_STORAGE_VERSION = 2;
   const AVATAR_STATUS_TEXT = {
     inUse: '\u30A2\u30C3\u30D7\u30ED\u30FC\u30C9\u6E08\u307F\u306E\u753B\u50CF\u3092\u4F7F\u7528\u3057\u3066\u3044\u307E\u3059\u3002',
     processing: '\u753B\u50CF\u3092\u51E6\u7406\u4E2D\u3067\u3059\u2026',
@@ -40,6 +42,8 @@
   const formEl = app.querySelector('.composer');
   const textareaEl = formEl.querySelector('textarea');
   const sendButtonEl = formEl.querySelector('.send-button');
+  const composerDefaultPlaceholder = textareaEl.getAttribute('placeholder') || '';
+  const composerNoThreadPlaceholder = '\u307E\u305A\u65B0\u3057\u3044\u30B9\u30EC\u30C3\u30C9\u3092\u4F5C\u6210\u3057\u3066\u304F\u3060\u3055\u3044\u3002';
   const profileNameEl = app.querySelector('.identity .name');
   const profileStatusEl = app.querySelector('.identity .status');
   const avatarEl = app.querySelector('.avatar');
@@ -76,6 +80,8 @@
   };
 
   const state = {
+    threads: [],
+    activeThreadId: null,
     messages: [],
     messageElements: new Map(),
     pendingAssistant: null,
@@ -96,7 +102,10 @@
   state.draftAvatarData = state.config.avatarData || '';
 
   function init() {
-    state.messages = loadMessages();
+    const { threads, activeThreadId } = loadThreadState();
+    state.threads = threads;
+    state.activeThreadId = activeThreadId;
+    state.messages = getActiveThreadMessages();
     renderAllMessages();
     updateEmptyState();
     renderThreadList();
@@ -131,14 +140,21 @@
       const deleteTarget = event.target.closest('[data-action="delete-thread"]');
       if (deleteTarget) {
         event.preventDefault();
-        const threadId = deleteTarget.dataset.threadId || 'main';
-        handleDeleteThread(threadId);
+        const threadId = deleteTarget.dataset.threadId;
+        if (threadId) {
+          handleDeleteThread(threadId);
+        }
         return;
       }
       const button = event.target.closest('.thread-item');
       if (!button) return;
-      threadListEl.querySelectorAll('.thread-item').forEach((item) => item.classList.remove('is-active'));
-      button.classList.add('is-active');
+      const threadId = button.dataset.threadId;
+      if (threadId) {
+        setActiveThread(threadId, { scrollBehavior: 'auto' });
+        if (!textareaEl.disabled) {
+          textareaEl.focus();
+        }
+      }
       closeDrawer();
     });
 
@@ -166,6 +182,7 @@
 
   function handleSubmit(event) {
     event.preventDefault();
+    if (!getActiveThread()) return;
     const content = textareaEl.value.trim();
     if (!content) return;
 
@@ -177,7 +194,9 @@
     textareaEl.value = '';
     autoResizeTextArea();
     updateSendButton();
-    textareaEl.focus();
+    if (!textareaEl.disabled) {
+      textareaEl.focus();
+    }
 
     requestAssistantReply(content);
   }
@@ -191,10 +210,11 @@
     const tracker = {
       messageId: assistantMessage.id,
       controller: new AbortController(),
+      threadId: state.activeThreadId,
     };
     state.pendingAssistant = tracker;
 
-    const pastMessages = state.messages
+    const pastMessages = getActiveThreadMessages()
       .filter((message) => message.id !== tracker.messageId && message.content.trim().length > 0)
       .map((message) => ({
         role: message.role,
@@ -330,7 +350,7 @@
 
   function createMessage(role, content) {
     return {
-      id: `msg-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+      id: generateMessageId(),
       role,
       content,
       createdAt: Date.now(),
@@ -339,7 +359,11 @@
 
   function appendMessage(message, options = {}) {
     const { persist = true, scrollBehavior = 'smooth' } = options;
-    state.messages.push(message);
+    const thread = getActiveThread();
+    if (!thread) return;
+    thread.messages.push(message);
+    thread.updatedAt = Date.now();
+    state.messages = thread.messages;
     if (persist) {
       saveMessages();
     }
@@ -369,12 +393,15 @@
     return { element, bubble, meta };
   }
 
-  function renderAllMessages() {
+  function renderAllMessages(scrollBehavior = 'auto') {
     threadEl.textContent = '';
     state.messageElements.clear();
 
+    const messages = getActiveThreadMessages();
+    state.messages = messages;
+
     const fragment = document.createDocumentFragment();
-    state.messages.forEach((message) => {
+    messages.forEach((message) => {
       const { element, bubble, meta } = buildMessageElement(message);
       state.messageElements.set(message.id, { element, bubble, meta });
       fragment.appendChild(element);
@@ -382,7 +409,8 @@
 
     threadEl.appendChild(fragment);
     renderThreadList();
-    scrollToBottom('auto');
+    scrollToBottom(scrollBehavior);
+    updateSendButton();
   }
 
   function formatMeta(message) {
@@ -395,7 +423,7 @@
   }
 
   function updateMessageBubble(messageId, content) {
-    const message = state.messages.find((item) => item.id === messageId);
+    const { message } = findMessageById(messageId);
     if (!message) return;
     message.content = content;
 
@@ -421,7 +449,7 @@
 
   function finalizeMessage(messageId, finalText) {
     updateMessageBubble(messageId, finalText);
-    const message = state.messages.find((item) => item.id === messageId);
+    const { thread, message } = findMessageById(messageId);
     if (message) {
       message.createdAt = Date.now();
     }
@@ -430,10 +458,15 @@
       entry.element.classList.remove('is-typing');
       entry.meta.textContent = message ? formatMeta(message) : `${assistantProfile.name}`;
     }
+    if (thread) {
+      thread.updatedAt = message?.createdAt || Date.now();
+    }
     saveMessages();
     updateEmptyState();
     renderThreadList();
-    scrollToBottom('smooth');
+    if (thread && thread.id === state.activeThreadId) {
+      scrollToBottom('smooth');
+    }
   }
 
   function autoResizeTextArea() {
@@ -442,19 +475,37 @@
   }
 
   function updateSendButton() {
+    const hasThread = Boolean(getActiveThread());
     const hasText = textareaEl.value.trim().length > 0;
-    sendButtonEl.disabled = !hasText;
+    sendButtonEl.disabled = !hasThread || !hasText;
+    const previouslyDisabled = textareaEl.disabled;
+    textareaEl.disabled = !hasThread;
+    if (!hasThread) {
+      textareaEl.placeholder = composerNoThreadPlaceholder;
+      textareaEl.setAttribute('aria-disabled', 'true');
+      if (!previouslyDisabled) {
+        textareaEl.value = '';
+      }
+      textareaEl.style.height = '';
+    } else {
+      textareaEl.placeholder = composerDefaultPlaceholder;
+      textareaEl.removeAttribute('aria-disabled');
+      autoResizeTextArea();
+    }
   }
 
   function updateThreadControls() {
-    const deleteButtons = threadListEl?.querySelectorAll('[data-action="delete-thread"]') || [];
+    if (!threadListEl) return;
+    const deleteButtons = threadListEl.querySelectorAll('[data-action="delete-thread"]');
     deleteButtons.forEach((button) => {
-      button.disabled = state.messages.length === 0;
+      const threadId = button.dataset.threadId;
+      const thread = threadId ? getThreadById(threadId) : null;
+      button.disabled = !thread;
     });
   }
 
   function updateEmptyState() {
-    const hasMessages = state.messages.length > 0;
+    const hasMessages = getActiveThreadMessages().length > 0;
     emptyStateEl.hidden = hasMessages;
     threadEl.classList.toggle('is-empty', !hasMessages);
     updateThreadControls();
@@ -510,26 +561,217 @@
     return assistantProfile.cannedReplies[index];
   }
 
-  function loadMessages() {
+  function generateThreadId() {
+    return `thread-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+  }
+
+  function generateMessageId() {
+    return `msg-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+  }
+
+  function sanitizeMessages(rawMessages) {
+    if (!Array.isArray(rawMessages)) return [];
+    const sanitized = [];
+    for (const entry of rawMessages) {
+      if (!isValidMessage(entry)) continue;
+      const normalized = {
+        id: typeof entry.id === 'string' && entry.id.trim() ? entry.id.trim() : generateMessageId(),
+        role: entry.role,
+        content: entry.content,
+        createdAt:
+          typeof entry.createdAt === 'number' && Number.isFinite(entry.createdAt)
+            ? entry.createdAt
+            : Date.now(),
+      };
+      sanitized.push(normalized);
+    }
+    return sanitized.slice(-200);
+  }
+
+  function createDefaultThreadState(messages = []) {
+    const sanitized = sanitizeMessages(messages);
+    const now = Date.now();
+    const initialCreatedAt = sanitized.length ? sanitized[0].createdAt : now;
+    const initialUpdatedAt = sanitized.length ? sanitized[sanitized.length - 1].createdAt : now;
+    return {
+      threads: [
+        {
+          id: 'main',
+          title: MAIN_THREAD_TITLE,
+          createdAt: initialCreatedAt,
+          updatedAt: initialUpdatedAt,
+          messages: sanitized,
+        },
+      ],
+      activeThreadId: 'main',
+    };
+  }
+
+  function loadThreadState() {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (!raw) return [];
+      if (!raw) {
+        return createDefaultThreadState([]);
+      }
       const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return [];
-      return parsed.filter(isValidMessage).slice(-200);
+      if (Array.isArray(parsed)) {
+        return createDefaultThreadState(parsed);
+      }
+      if (typeof parsed !== 'object' || parsed === null) {
+        return createDefaultThreadState([]);
+      }
+
+      const storedThreads = Array.isArray(parsed.threads) ? parsed.threads : [];
+      const normalizedThreads = [];
+      const seenIds = new Set();
+      let autoTitleIndex = 1;
+
+      for (const thread of storedThreads) {
+        if (!thread || typeof thread !== 'object') continue;
+        let id =
+          typeof thread.id === 'string' && thread.id.trim() ? thread.id.trim() : generateThreadId();
+        if (seenIds.has(id)) {
+          id = generateThreadId();
+        }
+        seenIds.add(id);
+
+        const messages = sanitizeMessages(thread.messages);
+        const now = Date.now();
+        const createdAt =
+          typeof thread.createdAt === 'number' && Number.isFinite(thread.createdAt)
+            ? thread.createdAt
+            : messages[0]?.createdAt ?? now;
+        const updatedAt =
+          typeof thread.updatedAt === 'number' && Number.isFinite(thread.updatedAt)
+            ? thread.updatedAt
+            : messages[messages.length - 1]?.createdAt ?? createdAt;
+
+        let title = '';
+        if (id === 'main') {
+          title = MAIN_THREAD_TITLE;
+        } else if (typeof thread.title === 'string' && thread.title.trim()) {
+          title = thread.title.trim();
+        } else {
+          title = `${NEW_THREAD_TITLE_BASE} ${autoTitleIndex}`;
+          autoTitleIndex += 1;
+        }
+
+        normalizedThreads.push({
+          id,
+          title,
+          createdAt,
+          updatedAt,
+          messages,
+        });
+      }
+
+      if (normalizedThreads.length === 0 && storedThreads.length === 0) {
+        return {
+          threads: [],
+          activeThreadId: null,
+        };
+      }
+
+      if (normalizedThreads.length === 0) {
+        return createDefaultThreadState([]);
+      }
+
+      const requestedActive =
+        typeof parsed.activeThreadId === 'string' ? parsed.activeThreadId : null;
+      const activeThreadId = normalizedThreads.some((thread) => thread.id === requestedActive)
+        ? requestedActive
+        : normalizedThreads[0]?.id ?? null;
+
+      return {
+        threads: normalizedThreads,
+        activeThreadId,
+      };
     } catch (error) {
-      console.warn('Unable to load stored messages:', error);
-      return [];
+      console.warn('Unable to load stored threads:', error);
+      return createDefaultThreadState([]);
     }
   }
 
   function saveMessages() {
     try {
-      const payload = JSON.stringify(state.messages.slice(-200));
+      const payload = JSON.stringify({
+        version: THREAD_STORAGE_VERSION,
+        activeThreadId: state.activeThreadId || null,
+        threads: state.threads.map((thread) => ({
+          id: thread.id,
+          title: thread.id === 'main' ? MAIN_THREAD_TITLE : thread.title,
+          createdAt: thread.createdAt,
+          updatedAt: thread.updatedAt,
+          messages: thread.messages.slice(-200).map((message) => ({
+            id:
+              typeof message.id === 'string' && message.id.trim()
+                ? message.id.trim()
+                : generateMessageId(),
+            role: message.role,
+            content: message.content,
+            createdAt:
+              typeof message.createdAt === 'number' && Number.isFinite(message.createdAt)
+                ? message.createdAt
+                : Date.now(),
+          })),
+        })),
+      });
       window.localStorage.setItem(STORAGE_KEY, payload);
     } catch (error) {
       console.warn('Unable to save messages:', error);
     }
+  }
+
+  function getThreadById(threadId) {
+    if (typeof threadId !== 'string') return null;
+    return state.threads.find((thread) => thread.id === threadId) || null;
+  }
+
+  function getActiveThread() {
+    const active =
+      typeof state.activeThreadId === 'string' ? getThreadById(state.activeThreadId) : null;
+    if (active) {
+      return active;
+    }
+    const fallback = state.threads[0] || null;
+    if (fallback && state.activeThreadId !== fallback.id) {
+      state.activeThreadId = fallback.id;
+    }
+    return fallback;
+  }
+
+  function getActiveThreadMessages() {
+    const thread = getActiveThread();
+    return thread ? thread.messages : [];
+  }
+
+  function getNextThreadTitle() {
+    const count = state.threads.filter((thread) => thread.id !== 'main').length + 1;
+    return `${NEW_THREAD_TITLE_BASE} ${count}`;
+  }
+
+  function findMessageById(messageId) {
+    if (typeof messageId !== 'string') {
+      return { thread: null, message: null };
+    }
+    for (const thread of state.threads) {
+      const message = thread.messages.find((item) => item.id === messageId);
+      if (message) {
+        return { thread, message };
+      }
+    }
+    return { thread: null, message: null };
+  }
+
+  function setActiveThread(threadId, options = {}) {
+    const thread = getThreadById(threadId);
+    if (!thread || state.activeThreadId === thread.id) return;
+    const { scrollBehavior = 'auto' } = options;
+    state.activeThreadId = thread.id;
+    state.messages = thread.messages;
+    renderAllMessages(scrollBehavior);
+    updateEmptyState();
+    saveMessages();
   }
 
   function loadConfig() {
@@ -590,12 +832,17 @@
 
   function clearMessages() {
     cancelPendingAssistant();
-    state.messages = [];
+    const thread = getActiveThread();
+    if (!thread) return;
+    thread.messages = [];
+    thread.updatedAt = Date.now();
+    state.messages = thread.messages;
     saveMessages();
-    state.messageElements.clear();
-    threadEl.textContent = '';
+    renderAllMessages();
     updateEmptyState();
-    renderThreadList();
+    if (!textareaEl.disabled) {
+      textareaEl.focus();
+    }
   }
 
   function isValidMessage(message) {
@@ -973,39 +1220,49 @@
     if (!threadListEl) return;
     threadListEl.textContent = '';
 
-    const threadItem = document.createElement('li');
-    threadItem.className = 'thread-list-entry';
+    state.threads.forEach((thread, index) => {
+      const threadItem = document.createElement('li');
+      threadItem.className = 'thread-list-entry';
 
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'thread-item is-active';
-    button.dataset.threadId = 'main';
+      const button = document.createElement('button');
+      button.type = 'button';
+      const isActive = state.activeThreadId
+        ? thread.id === state.activeThreadId
+        : index === 0;
+      button.className = `thread-item${isActive ? ' is-active' : ''}`;
+      button.dataset.threadId = thread.id;
 
-    const title = document.createElement('div');
-    title.className = 'thread-title';
-    title.textContent = MAIN_THREAD_TITLE;
-    button.appendChild(title);
+      const title = document.createElement('div');
+      title.className = 'thread-title';
+      title.textContent = thread.title || MAIN_THREAD_TITLE;
+      button.appendChild(title);
 
-    const preview = document.createElement('div');
-    preview.className = 'thread-preview';
-    preview.textContent = formatThreadPreview(state.messages);
-    button.appendChild(preview);
+      const preview = document.createElement('div');
+      preview.className = 'thread-preview';
+      preview.textContent = formatThreadPreview(thread.messages);
+      button.appendChild(preview);
 
-    const deleteButton = document.createElement('button');
-    deleteButton.type = 'button';
-    deleteButton.className = 'thread-item-delete';
-    deleteButton.dataset.action = 'delete-thread';
-    deleteButton.dataset.threadId = 'main';
-    deleteButton.setAttribute('aria-label', '\u30B9\u30EC\u30C3\u30C9\u3092\u524A\u9664\u3059\u308B');
-    deleteButton.innerHTML =
-      '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6 18 18M6 18 18 6" vector-effect="non-scaling-stroke" /></svg>';
+      const deleteButton = document.createElement('button');
+      deleteButton.type = 'button';
+      deleteButton.className = 'thread-item-delete';
+      deleteButton.dataset.action = 'delete-thread';
+      deleteButton.dataset.threadId = thread.id;
+      deleteButton.setAttribute('aria-label', '\u30B9\u30EC\u30C3\u30C9\u3092\u524A\u9664\u3059\u308B');
+      deleteButton.innerHTML =
+        '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6 18 18M6 18 18 6" vector-effect="non-scaling-stroke" /></svg>';
 
-    threadItem.appendChild(button);
-    threadItem.appendChild(deleteButton);
-    threadListEl.appendChild(threadItem);
+      threadItem.appendChild(button);
+      threadItem.appendChild(deleteButton);
+      threadListEl.appendChild(threadItem);
+    });
 
     if (threadEmptyEl) {
-      threadEmptyEl.hidden = true;
+      if (state.threads.length === 0) {
+        threadEmptyEl.hidden = false;
+        threadEmptyEl.textContent = '\u307E\u3060\u30B9\u30EC\u30C3\u30C9\u304C\u3042\u308A\u307E\u305B\u3093\u3002\u300C\u65B0\u898F\u30B9\u30EC\u30C3\u30C9\u300D\u3092\u62BC\u3057\u3066\u4F5C\u6210\u3057\u307E\u3057\u3087\u3046\u3002';
+      } else {
+        threadEmptyEl.hidden = true;
+      }
     }
     updateThreadControls();
   }
@@ -1020,20 +1277,59 @@
   }
 
   function handleCreateThread() {
-    if (!threadEmptyEl) return;
-    threadEmptyEl.hidden = false;
-    threadEmptyEl.textContent = '\u30B9\u30EC\u30C3\u30C9\u6A5F\u80FD\u306F\u6B21\u306E\u30B9\u30C6\u30C3\u30D7\u3067\u5B9F\u88C5\u4E88\u5B9A\u3067\u3059\u3002\u304A\u697D\u3057\u307F\u306B\uFF01';
-    window.setTimeout(() => {
-      threadEmptyEl.hidden = true;
-    }, 3200);
+    const now = Date.now();
+    const id = generateThreadId();
+    const title = getNextThreadTitle();
+    const newThread = {
+      id,
+      title,
+      createdAt: now,
+      updatedAt: now,
+      messages: [],
+    };
+    state.threads.push(newThread);
+    setActiveThread(newThread.id, { scrollBehavior: 'auto' });
+    closeDrawer();
+    if (!textareaEl.disabled) {
+      textareaEl.focus();
+    }
   }
 
-  function handleDeleteThread(threadId = 'main') {
-    if (threadId !== 'main') return;
-    if (!state.messages.length) return;
-    const confirmed = window.confirm('\u3053\u306E\u30B9\u30EC\u30C3\u30C9\u3092\u524A\u9664\u3059\u308B\u3068\u3001\u4F1A\u8A71\u5C65\u6B74\u306F\u5143\u306B\u623B\u305B\u307E\u305B\u3093\u3002\u524A\u9664\u3057\u307E\u3059\u304B\uFF1F');
+  function handleDeleteThread(threadId) {
+    if (typeof threadId !== 'string') return;
+    const targetThread = getThreadById(threadId);
+    if (!targetThread) return;
+
+    const confirmed = window.confirm(
+      '\u3053\u306E\u30B9\u30EC\u30C3\u30C9\u3092\u524A\u9664\u3059\u308B\u3068\u3001\u4F1A\u8A71\u5C65\u6B74\u306F\u5143\u306B\u623B\u305B\u307E\u305B\u3093\u3002\u524A\u9664\u3057\u307E\u3059\u304B\uFF1F'
+    );
     if (!confirmed) return;
-    clearMessages();
+
+    if (state.pendingAssistant?.threadId === threadId) {
+      cancelPendingAssistant();
+    }
+
+    const index = state.threads.findIndex((thread) => thread.id === threadId);
+    if (index === -1) return;
+    state.threads.splice(index, 1);
+
+    if (state.activeThreadId === threadId) {
+      const fallbackThread =
+        state.threads[index] || state.threads[index - 1] || state.threads[0] || null;
+      state.activeThreadId = fallbackThread ? fallbackThread.id : null;
+    }
+
+    state.messageElements.clear();
+    state.messages = getActiveThreadMessages();
+    saveMessages();
+    renderAllMessages();
+    updateEmptyState();
+    if (state.activeThreadId && !textareaEl.disabled) {
+      textareaEl.focus();
+    } else {
+      textareaEl.value = '';
+      updateSendButton();
+    }
   }
 
   function openDrawer() {
@@ -1176,7 +1472,7 @@
         clearMessages();
       },
       getHistory() {
-        return [...state.messages];
+        return [...getActiveThreadMessages()];
       },
       setAssistantProfile({ name, status, systemPrompt, model, avatarUrl, avatarData }) {
         if (typeof name === 'string' && name.trim()) {

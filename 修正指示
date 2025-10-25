@@ -1,0 +1,143 @@
+Codex への修正依頼
+
+## 目的
+
+GitHub Pages は **デモ専用（APIは叩かない）**にする。
+
+本番は Vercel の /api/chat 経由で OpenAI を呼ぶ。
+
+ブラウザでユーザーに API キーを入力させる UI は既定では非表示（BYOK は任意で有効化可能）。
+
+## 変更対象
+
+index.html
+
+script.js
+
+新規：/api/chat.js（Vercel Serverless Function）
+
+任意：README.md（導線の追記）
+
+## やりたいこと（実装要件）
+
+# 1. index.html の冒頭に デモ判定＋Pagesガードを追加
+
+?demo=1 のときのみデモを有効化し、API呼び出しをブロック（fetch のラップで /api と openai.com を拒否）。
+
+*.github.io では デモ以外を停止して、案内文を表示。
+
+# 2. script.js の OpenAI“直呼び”を禁止し、sendChat() を /api/chat POST に変更。
+
+デモ時は mockChat() を返す。
+
+# 3. 新規 api/chat.js を追加し、サーバ側で process.env.OPENAI_API_KEY を使用して OpenAI を呼ぶ。
+
+未設定時は 500 とメッセージを返す。
+
+# 4.（任意）GET /api/chat で { ok:true, hasKey:boolean } を返すヘルスチェック。
+
+（任意）キー入力UIがある場合は 既定で非表示に変更し、?byok=1 の時だけ表示されるよう切替。
+
+
+
+## 制約・方針
+
+クライアントにキーを露出しない（NEXT_PUBLIC_ 変数は使わない）。
+
+既存の UI/UX を壊さない（チャット送信の関数名や戻り値の形は維持）。
+
+既存コードへの変更は 最小差分で。
+
+## 受け入れ基準（動作確認）
+
+✅ https://…github.io/…/?demo=1 で UI が動き、ネットワークタブに /api や openai.com が出ない。
+
+✅ https://…github.io/…/（?demo=1 なし）は ブロック案内が出る。
+
+✅ https://<app>.vercel.app で OPENAI_API_KEY を設定済みなら、キー入力なしで会話できる。
+
+✅ GET /api/chat が { ok:true, hasKey:true } を返す（任意）。
+
+✅ BYOK（?byok=1）にするとキー入力UIが出る（任意）。
+
+## 変更差分（雛形）
+
+1) index.html（冒頭へ追記）
+
+<script>
+(() => {
+  const u = new URL(location.href);
+  const DEMO = u.searchParams.get('demo') === '1';
+  const isPages = /\.github\.io$/.test(location.hostname) || location.hostname === 'github.io';
+  window.__DEMO__ = DEMO;
+
+  if (DEMO) {
+    const _fetch = window.fetch.bind(window);
+    window.fetch = (input, init) => {
+      const s = String(input);
+      if (s.includes('/api') || s.includes('openai.com')) {
+        return Promise.reject(new Error('Demo mode blocks API calls'));
+      }
+      return _fetch(input, init);
+    };
+    document.documentElement.classList.add('demo');
+  }
+
+  if (isPages && !DEMO) {
+    addEventListener('DOMContentLoaded', () => {
+      document.body.innerHTML =
+        '<h2>🚫 GitHub Pages はデモ専用</h2><p><code>?demo=1</code> を付けてUIのみ試せます。本番はVercelへ。</p>';
+    });
+    throw new Error('Blocked on GitHub Pages (non-demo)');
+  }
+})();
+</script>
+
+
+2) script.js（直呼び→/api 経由＋デモ時モック）
+
+ async function sendChat(messages){
+-  const r = await fetch('https://api.openai.com/v1/chat/completions', {
+-    method: 'POST',
+-    headers: {
+-      'Content-Type': 'application/json',
+-      Authorization: `Bearer ${state.config.apiKey}`,
+-    },
+-    body: JSON.stringify(requestBody),
+-  });
++  if (window.__DEMO__) return mockChat(messages);
++  const r = await fetch('/api/chat', {
++    method: 'POST',
++    headers: { 'Content-Type': 'application/json' },
++    body: JSON.stringify({ messages }),
++  });
+   return r.json();
+ }
+
++async function mockChat(messages){
++  const last = messages?.at(-1)?.content ?? '';
++  return { choices: [{ message:{ role:'assistant',
++    content: `これはデモ応答です 👋\n入力:「${last.slice(0,60)}」\n本番はVercelでデプロイしてね。` } }] };
++}
+
+
+3) 新規 api/chat.js
+
+export default async function handler(req, res){
+  if (req.method === 'GET') {
+    return res.status(200).json({ ok: true, hasKey: Boolean(process.env.OPENAI_API_KEY) });
+  }
+  if (req.method !== 'POST') return res.status(405).end();
+
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) return res.status(500).json({ error: 'OPENAI_API_KEY is not set' });
+
+  const { messages, model = 'gpt-4o-mini' } = req.body || {};
+  const r = await fetch('https://api.openai.com/v1/chat/completions', {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${key}` },
+    body: JSON.stringify({ model, messages })
+  });
+  res.status(r.status).json(await r.json());
+}
+
