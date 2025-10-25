@@ -4,14 +4,20 @@ export default async function handler(req, res) {
   }
   if (req.method !== 'POST') return res.status(405).end();
 
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) return res.status(500).json({ error: 'OPENAI_API_KEY is not set' });
+  const body = req.body || {};
+　const { messages = [], model = 'gpt-4o-mini', systemPrompt, apiKey } = body;
+　// BYOKが来ていればそれを、なければ環境変数を使う
+  const key = apiKey || process.env.OPENAI_API_KEY;  
+if (!key) return res.status(500).json({ error: 'OPENAI_API_KEY is not set' });
 
-  const { messages, model = 'gpt-4o-mini' } = req.body || {};
+  // systemPrompt があれば system ロールを先頭に付与
+  const finalMessages = systemPrompt
+  ? [{ role: 'system', content: String(systemPrompt) }, ...messages]
+  : messages;
   const r = await fetch('https://api.openai.com/v1/chat/completions', {
     method:'POST',
     headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${key}` },
-    body: JSON.stringify({ model, messages })
+    body: JSON.stringify({ model, messages: finalMessages })
   });
   res.status(r.status).json(await r.json());
 }

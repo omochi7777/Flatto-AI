@@ -1,3 +1,1454 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.gitignore
+api/chat.js
+index.html
+README.md
+script.js
+styles.css
+修正指示
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="修正指示">
+Codex への修正依頼
+
+## 目的
+
+GitHub Pages は **デモ専用（APIは叩かない）**にする。
+
+本番は Vercel の /api/chat 経由で OpenAI を呼ぶ。
+
+ブラウザでユーザーに API キーを入力させる UI は既定では非表示（BYOK は任意で有効化可能）。
+
+## 変更対象
+
+index.html
+
+script.js
+
+新規：/api/chat.js（Vercel Serverless Function）
+
+任意：README.md（導線の追記）
+
+## やりたいこと（実装要件）
+
+# 1. index.html の冒頭に デモ判定＋Pagesガードを追加
+
+?demo=1 のときのみデモを有効化し、API呼び出しをブロック（fetch のラップで /api と openai.com を拒否）。
+
+*.github.io では デモ以外を停止して、案内文を表示。
+
+# 2. script.js の OpenAI“直呼び”を禁止し、sendChat() を /api/chat POST に変更。
+
+デモ時は mockChat() を返す。
+
+# 3. 新規 api/chat.js を追加し、サーバ側で process.env.OPENAI_API_KEY を使用して OpenAI を呼ぶ。
+
+未設定時は 500 とメッセージを返す。
+
+# 4.（任意）GET /api/chat で { ok:true, hasKey:boolean } を返すヘルスチェック。
+
+（任意）キー入力UIがある場合は 既定で非表示に変更し、?byok=1 の時だけ表示されるよう切替。
+
+
+
+## 制約・方針
+
+クライアントにキーを露出しない（NEXT_PUBLIC_ 変数は使わない）。
+
+既存の UI/UX を壊さない（チャット送信の関数名や戻り値の形は維持）。
+
+既存コードへの変更は 最小差分で。
+
+## 受け入れ基準（動作確認）
+
+✅ https://…github.io/…/?demo=1 で UI が動き、ネットワークタブに /api や openai.com が出ない。
+
+✅ https://…github.io/…/（?demo=1 なし）は ブロック案内が出る。
+
+✅ https://<app>.vercel.app で OPENAI_API_KEY を設定済みなら、キー入力なしで会話できる。
+
+✅ GET /api/chat が { ok:true, hasKey:true } を返す（任意）。
+
+✅ BYOK（?byok=1）にするとキー入力UIが出る（任意）。
+
+## 変更差分（雛形）
+
+1) index.html（冒頭へ追記）
+
+<script>
+(() => {
+  const u = new URL(location.href);
+  const DEMO = u.searchParams.get('demo') === '1';
+  const isPages = /\.github\.io$/.test(location.hostname) || location.hostname === 'github.io';
+  window.__DEMO__ = DEMO;
+
+  if (DEMO) {
+    const _fetch = window.fetch.bind(window);
+    window.fetch = (input, init) => {
+      const s = String(input);
+      if (s.includes('/api') || s.includes('openai.com')) {
+        return Promise.reject(new Error('Demo mode blocks API calls'));
+      }
+      return _fetch(input, init);
+    };
+    document.documentElement.classList.add('demo');
+  }
+
+  if (isPages && !DEMO) {
+    addEventListener('DOMContentLoaded', () => {
+      document.body.innerHTML =
+        '<h2>🚫 GitHub Pages はデモ専用</h2><p><code>?demo=1</code> を付けてUIのみ試せます。本番はVercelへ。</p>';
+    });
+    throw new Error('Blocked on GitHub Pages (non-demo)');
+  }
+})();
+</script>
+
+
+2) script.js（直呼び→/api 経由＋デモ時モック）
+
+ async function sendChat(messages){
+-  const r = await fetch('https://api.openai.com/v1/chat/completions', {
+-    method: 'POST',
+-    headers: {
+-      'Content-Type': 'application/json',
+-      Authorization: `Bearer ${state.config.apiKey}`,
+-    },
+-    body: JSON.stringify(requestBody),
+-  });
++  if (window.__DEMO__) return mockChat(messages);
++  const r = await fetch('/api/chat', {
++    method: 'POST',
++    headers: { 'Content-Type': 'application/json' },
++    body: JSON.stringify({ messages }),
++  });
+   return r.json();
+ }
+
++async function mockChat(messages){
++  const last = messages?.at(-1)?.content ?? '';
++  return { choices: [{ message:{ role:'assistant',
++    content: `これはデモ応答です 👋\n入力:「${last.slice(0,60)}」\n本番はVercelでデプロイしてね。` } }] };
++}
+
+
+3) 新規 api/chat.js
+
+export default async function handler(req, res){
+  if (req.method === 'GET') {
+    return res.status(200).json({ ok: true, hasKey: Boolean(process.env.OPENAI_API_KEY) });
+  }
+  if (req.method !== 'POST') return res.status(405).end();
+
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) return res.status(500).json({ error: 'OPENAI_API_KEY is not set' });
+
+  const { messages, model = 'gpt-4o-mini' } = req.body || {};
+  const r = await fetch('https://api.openai.com/v1/chat/completions', {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${key}` },
+    body: JSON.stringify({ model, messages })
+  });
+  res.status(r.status).json(await r.json());
+}
+</file>
+
+<file path=".gitignore">
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# nyc test coverage
+.nyc_output
+
+# Dependency directories
+node_modules/
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Temporary files
+*.tmp
+*.temp
+
+# Build outputs
+dist/
+build/
+</file>
+
+<file path="api/chat.js">
+export default async function handler(req, res) {
+  if (req.method === 'GET') {
+    return res.status(200).json({ ok: true, hasKey: Boolean(process.env.OPENAI_API_KEY) });
+  }
+  if (req.method !== 'POST') return res.status(405).end();
+
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) return res.status(500).json({ error: 'OPENAI_API_KEY is not set' });
+
+  const { messages, model = 'gpt-4o-mini' } = req.body || {};
+  const r = await fetch('https://api.openai.com/v1/chat/completions', {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${key}` },
+    body: JSON.stringify({ model, messages })
+  });
+  res.status(r.status).json(await r.json());
+}
+</file>
+
+<file path="styles.css">
+:root {
+  color-scheme: light;
+  --app-background: linear-gradient(160deg, #f0fbff 0%, #ffffff 60%, #f9efff 100%);
+  --surface: rgba(255, 255, 255, 0.82);
+  --surface-strong: rgba(255, 255, 255, 0.94);
+  --border-soft: rgba(100, 120, 140, 0.15);
+  --shadow-soft: 0 18px 40px -24px rgba(58, 72, 94, 0.4);
+  --text-primary: #193046;
+  --text-secondary: rgba(25, 48, 70, 0.64);
+  --accent: #1fb6ff;
+  --accent-strong: #0076ff;
+  --assistant-bubble: #ffffff;
+  --assistant-border: rgba(31, 182, 255, 0.22);
+  --user-bubble: linear-gradient(135deg, #45e6b8 0%, #1ec7ff 100%);
+  --user-text: #043752;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font-family: "Noto Sans JP", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--app-background);
+  color: var(--text-primary);
+  display: flex;
+  justify-content: center;
+}
+
+.app {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  width: min(100%, 480px);
+  height: 100dvh;
+  padding: clamp(16px, 4vw, 24px);
+  gap: 16px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: 18px;
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(16px);
+  position: sticky;
+  top: clamp(16px, 4vw, 24px);
+  z-index: 10;
+}
+
+.layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.28s ease;
+  z-index: 15;
+}
+
+.layer.is-open {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.drawer-layer {
+  justify-content: flex-start;
+  align-items: stretch;
+}
+
+.settings-layer {
+  justify-content: center;
+  align-items: center;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(18, 38, 58, 0.16);
+  backdrop-filter: blur(2px);
+  transition: opacity 0.28s ease;
+}
+
+.drawer-backdrop {
+  background: linear-gradient(120deg, rgba(10, 30, 46, 0.18), rgba(18, 82, 110, 0.06));
+}
+
+.settings-backdrop {
+  background: rgba(8, 25, 38, 0.22);
+}
+
+.layer:not(.is-open) .backdrop {
+  opacity: 0;
+}
+
+.layer.is-open .backdrop {
+  opacity: 1;
+}
+
+.chat-drawer {
+  position: relative;
+  width: min(360px, 82vw);
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: 22px;
+  box-shadow: 0 28px 64px -36px rgba(20, 60, 90, 0.45);
+  padding: 20px 18px;
+  margin: clamp(16px, 5vw, 28px) 0;
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  gap: 18px;
+  transform: translateX(-120%);
+  transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(20px);
+}
+
+.drawer-layer.is-open .chat-drawer {
+  transform: translateX(0);
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.drawer-header h2 {
+  margin: 0;
+  font-size: 1.12rem;
+  font-weight: 700;
+}
+
+.drawer-close {
+  width: 38px;
+  height: 38px;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.drawer-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.new-thread-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(31, 182, 255, 0.24);
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--accent-strong);
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.new-thread-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px -14px rgba(31, 182, 255, 0.8);
+}
+
+.new-thread-button svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  fill: none;
+}
+
+.drawer-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.thread-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.thread-list-entry {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.thread-item {
+  width: 100%;
+  flex: 1 1 auto;
+  border: 1px solid rgba(25, 48, 70, 0.08);
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.82);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  cursor: pointer;
+  box-shadow: 0 16px 34px -30px rgba(25, 48, 70, 0.8);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.thread-item:hover {
+  transform: translateX(2px);
+  box-shadow: 0 22px 38px -28px rgba(25, 48, 70, 0.7);
+}
+
+.thread-item.is-active {
+  border-color: rgba(31, 182, 255, 0.4);
+  box-shadow: 0 24px 46px -28px rgba(31, 182, 255, 0.6);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.thread-item-delete {
+  align-self: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: inset 0 0 0 1px rgba(31, 182, 255, 0.1);
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
+}
+
+.thread-item-delete svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+}
+
+.thread-item-delete:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 26px -20px rgba(31, 182, 255, 0.5), inset 0 0 0 1px rgba(31, 182, 255, 0.15);
+}
+
+.thread-item-delete:focus-visible {
+  outline: 2px solid rgba(31, 182, 255, 0.68);
+  outline-offset: 2px;
+}
+
+.thread-item-delete:active {
+  transform: translateY(0);
+  box-shadow: inset 0 0 0 1px rgba(31, 182, 255, 0.22);
+}
+
+.thread-item-delete[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: inset 0 0 0 1px rgba(31, 182, 255, 0.05);
+}
+
+[data-theme="midnight"] .thread-item-delete {
+  background: rgba(27, 40, 58, 0.82);
+  color: var(--accent-strong);
+  box-shadow: inset 0 0 0 1px rgba(31, 182, 255, 0.18);
+}
+
+.thread-title {
+  font-weight: 700;
+  color: var(--text-primary);
+  max-width: 100%;
+  text-align: left;
+}
+
+.thread-preview {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  text-align: left;
+  max-width: 100%;
+}
+
+.thread-empty {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.settings-modal {
+  position: relative;
+  width: min(520px, 92vw);
+  max-height: min(640px, 92vh);
+  background: var(--surface-strong);
+  border: 1px solid rgba(25, 48, 70, 0.12);
+  border-radius: 24px;
+  box-shadow: 0 36px 90px -40px rgba(12, 42, 68, 0.55);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  transform: scale(0.96);
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(22px);
+}
+
+.settings-layer.is-open .settings-modal {
+  transform: scale(1);
+}
+
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.settings-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.settings-header p {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.settings-section {
+  border: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.settings-section legend {
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: var(--text-primary);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.field input,
+.field textarea,
+.field select {
+  font: inherit;
+  color: var(--text-primary);
+  border-radius: 12px;
+  border: 1px solid rgba(25, 48, 70, 0.15);
+  background: rgba(255, 255, 255, 0.9);
+  padding: 10px 12px;
+  box-shadow: inset 0 1px 2px rgba(25, 48, 70, 0.05);
+}
+
+.field select {
+  appearance: none;
+  background-image: radial-gradient(circle at right 0.75rem center, rgba(31, 182, 255, 0.35) 0, rgba(31, 182, 255, 0.35) 45%, transparent 46%);
+  background-repeat: no-repeat;
+  background-size: 0.75rem 0.75rem;
+  background-position: right 0.85rem center;
+  padding-right: 2.4rem;
+}
+
+.field textarea {
+  resize: vertical;
+  min-height: 96px;
+}
+
+.field-support {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.field-support [data-avatar-status] {
+  display: block;
+  margin-top: 4px;
+}
+
+.field-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.text-button {
+  border: none;
+  padding: 0;
+  background: none;
+  color: var(--accent-strong);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.text-button:hover {
+  text-decoration: underline;
+}
+
+.text-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 8px;
+}
+
+.primary-button,
+.ghost-button {
+  font: inherit;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 10px 18px;
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.primary-button {
+  border: none;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
+  box-shadow: 0 14px 32px -22px rgba(0, 118, 255, 0.9);
+}
+
+.primary-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 20px 42px -24px rgba(0, 118, 255, 0.85);
+}
+
+.ghost-button {
+  border: 1px solid rgba(25, 48, 70, 0.16);
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.ghost-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 36px -28px rgba(25, 48, 70, 0.35);
+}
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: inset 0 0 0 1px rgba(31, 182, 255, 0.08);
+  color: var(--accent);
+}
+
+.icon-button svg {
+  width: 22px;
+  height: 22px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  fill: none;
+}
+
+.icon-button[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: inset 0 0 0 1px rgba(31, 182, 255, 0.04);
+}
+
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.avatar {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #80e8ff, #30b7ff);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  box-shadow: 0 6px 18px -10px rgba(0, 136, 255, 0.6);
+  overflow: hidden;
+}
+
+.avatar-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.avatar-initial {
+  font-size: 1.125rem;
+  z-index: 1;
+  transition: opacity 0.2s ease;
+}
+
+.avatar[data-has-image="true"] .avatar-initial {
+  opacity: 0;
+}
+
+.identity {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.identity .name {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.identity .status {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.chat-thread {
+  position: relative;
+  background: var(--surface-strong);
+  border-radius: 22px;
+  border: 1px solid var(--border-soft);
+  padding: 18px 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(20px);
+}
+
+.chat-thread::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 65% at 50% 0%, rgba(31, 182, 255, 0.12) 0%, transparent 65%);
+  pointer-events: none;
+}
+
+.chat-messages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(31, 182, 255, 0.3) transparent;
+}
+
+.chat-messages::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(31, 182, 255, 0.3);
+}
+
+.chat-empty {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+  padding: 24px 12px;
+}
+
+.chat-message {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 96%;
+}
+
+.chat-message.is-typing .chat-meta {
+  color: var(--accent-strong);
+}
+
+.chat-message.is-typing .chat-meta::after {
+  content: '...';
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  width: 0;
+  animation: meta-dots 1.2s steps(4, end) infinite;
+}
+
+.chat-message.is-typing .chat-bubble::after {
+  content: '';
+  position: absolute;
+  right: 14px;
+  bottom: 10px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(31, 182, 255, 0.45);
+  box-shadow: 0 0 0 0 rgba(31, 182, 255, 0.25);
+  animation: bubble-pulse 1.4s ease-out infinite;
+}
+
+.chat-message[data-role="user"] {
+  align-self: flex-end;
+  text-align: right;
+}
+
+.chat-message[data-role="assistant"] {
+  align-self: flex-start;
+}
+
+.chat-bubble {
+  position: relative;
+  padding: 14px 16px;
+  border-radius: 18px 18px 4px 18px;
+  line-height: 1.55;
+  font-size: 0.96rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.chat-message[data-role="assistant"] .chat-bubble {
+  background: var(--assistant-bubble);
+  border: 1px solid var(--assistant-border);
+  border-radius: 18px 18px 18px 6px;
+  box-shadow: 0 18px 26px -22px rgba(31, 182, 255, 0.5);
+}
+
+.chat-message[data-role="user"] .chat-bubble {
+  background: var(--user-bubble);
+  color: var(--user-text);
+  font-weight: 600;
+  border-radius: 18px 6px 18px 18px;
+  box-shadow: 0 18px 24px -20px rgba(31, 182, 255, 0.65);
+}
+
+.chat-meta {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.composer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: 22px;
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(16px);
+  position: sticky;
+  bottom: clamp(16px, 4vw, 24px);
+}
+
+.composer textarea {
+  resize: none;
+  width: 100%;
+  font: inherit;
+  line-height: 1.6;
+  border: none;
+  padding: 10px 0;
+  background: transparent;
+  color: var(--text-primary);
+}
+
+.composer textarea::placeholder {
+  color: rgba(25, 48, 70, 0.4);
+}
+
+.composer textarea:focus {
+  outline: none;
+}
+
+.send-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
+  box-shadow: 0 12px 28px -18px rgba(0, 118, 255, 0.9);
+  cursor: pointer;
+}
+
+.send-button svg {
+  width: 18px;
+  height: 18px;
+  stroke: none;
+  fill: currentColor;
+}
+
+.send-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.chat-message.is-typing .chat-bubble {
+  padding-right: 32px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 480px) {
+  .app {
+    padding: 16px;
+  }
+
+  .topbar {
+    border-radius: 16px;
+  }
+
+  .chat-thread {
+    border-radius: 18px;
+    padding: 16px 14px;
+  }
+
+  .composer {
+    border-radius: 18px;
+    padding: 12px 14px;
+  }
+}
+
+@media (min-width: 640px) {
+  .app {
+    border-radius: 28px;
+    max-height: 860px;
+    align-self: center;
+    box-shadow: 0 30px 80px -48px rgba(40, 90, 120, 0.45);
+  }
+
+  body {
+    align-items: center;
+  }
+}
+
+@keyframes meta-dots {
+  0% {
+    width: 0;
+  }
+  33% {
+    width: 0.5em;
+  }
+  66% {
+    width: 1em;
+  }
+  100% {
+    width: 1.5em;
+  }
+}
+
+@keyframes bubble-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  70% {
+    transform: scale(1.4);
+    opacity: 0.2;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+}
+.byok-feature {
+  display: none;
+}
+
+html.byok .byok-feature {
+  display: block;
+}
+</file>
+
+<file path="index.html">
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>FreshChat UI</title>
+    <script>
+      (() => {
+        const u = new URL(location.href);
+        const DEMO = u.searchParams.get('demo') === '1';
+        const BYOK = u.searchParams.get('byok') === '1';
+        const isPages = /\.github\.io$/.test(location.hostname) || location.hostname === 'github.io';
+        window.__DEMO__ = DEMO;
+        window.__BYOK__ = BYOK;
+
+        if (DEMO) {
+          const _fetch = window.fetch.bind(window);
+          window.fetch = (input, init) => {
+            const s = String(input);
+            if (s.includes('/api') || s.includes('openai.com')) {
+              console.warn('Demo mode blocks API calls to:', s);
+              return Promise.reject(new Error('Demo mode blocks API calls'));
+            }
+            return _fetch(input, init);
+          };
+          document.documentElement.classList.add('demo');
+        }
+
+        if(BYOK){
+          document.documentElement.classList.add('byok');
+        }
+
+        if (isPages && !DEMO) {
+          addEventListener('DOMContentLoaded', () => {
+            document.body.innerHTML =
+              '<h2>🚫 GitHub Pages はデモ専用</h2><p><code>?demo=1</code> を付けてUIのみ試せます。本番はVercelへ。</p>';
+          });
+          throw new Error('Blocked on GitHub Pages (non-demo)');
+        }
+      })();
+    </script>
+    <link rel="stylesheet" href="styles.css">
+    <script defer src="script.js"></script>
+  </head>
+  <body>
+    <main class="app" data-theme="daybreak" data-chat-open="false" data-settings-open="false">
+      <header class="topbar" role="banner">
+        <button
+          class="icon-button drawer-toggle"
+          type="button"
+          aria-label="&#x30B9;&#x30EC;&#x30C3;&#x30C9;&#x4E00;&#x89A7;&#x3092;&#x958B;&#x304F;"
+          aria-expanded="false"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M4 6h16M4 12h12M4 18h16" vector-effect="non-scaling-stroke" />
+          </svg>
+        </button>
+        <div class="profile">
+          <div class="avatar" aria-hidden="true">
+            <img class="avatar-image" alt="" decoding="async" hidden />
+            <span class="avatar-initial">A</span>
+          </div>
+          <div class="identity">
+            <span class="name">Aeris</span>
+            <span class="status">&#x3044;&#x3064;&#x3067;&#x3082;&#x76F8;&#x8AC7;&#x3067;&#x304D;&#x307E;&#x3059;</span>
+          </div>
+        </div>
+        <button
+          class="icon-button settings-toggle"
+          type="button"
+          aria-label="&#x8A2D;&#x5B9A;&#x30E2;&#x30FC;&#x30C0;&#x30EB;&#x3092;&#x958B;&#x304F;"
+          aria-haspopup="dialog"
+          aria-expanded="false"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              d="M11.22 2.25c-.28-.83-1.44-.83-1.72 0l-.56 1.56a1 1 0 0 1-1.47.55l-1.35-.78c-.76-.44-1.6.41-1.16 1.16l.78 1.35a1 1 0 0 1-.55 1.47l-1.56.56c-.83.28-.83 1.44 0 1.72l1.56.56a1 1 0 0 1 .55 1.47l-.78 1.35c-.44.76.4 1.6 1.16 1.16l1.35-.78a1 1 0 0 1 1.47.55l.56 1.56c.28.83 1.44.83 1.72 0l.56-1.56a1 1 0 0 1 1.47-.55l1.35.78c.76.44 1.6-.4 1.16-1.16l-.78-1.35a1 1 0 0 1 .55-1.47l1.56-.56c.83-.28.83-1.44 0-1.72l-1.56-.56a1 1 0 0 1-.55-1.47l.78-1.35c.44-.76-.4-1.6-1.16-1.16l-1.35.78a1 1 0 0 1-1.47-.55l-.56-1.56Z"
+              vector-effect="non-scaling-stroke"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M9.75 12a2.25 2.25 0 1 0 4.5 0 2.25 2.25 0 0 0-4.5 0Z"
+              vector-effect="non-scaling-stroke"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+      </header>
+
+      <div class="layer drawer-layer" data-role="drawer-layer">
+        <div class="backdrop drawer-backdrop" data-action="close-drawer" aria-hidden="true"></div>
+        <aside
+          class="chat-drawer"
+          aria-labelledby="drawer-title"
+          aria-hidden="true"
+          tabindex="-1"
+        >
+          <header class="drawer-header">
+            <h2 id="drawer-title">&#x30C1;&#x30E3;&#x30C3;&#x30C8;&#x30B9;&#x30EC;&#x30C3;&#x30C9;</h2>
+            <button class="drawer-close icon-button" type="button" data-action="close-drawer" aria-label="&#x30B9;&#x30EC;&#x30C3;&#x30C9;&#x4E00;&#x89A7;&#x3092;&#x9589;&#x3058;&#x308B;">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M6 6 18 18M6 18 18 6" vector-effect="non-scaling-stroke" />
+              </svg>
+            </button>
+          </header>
+          <div class="drawer-actions">
+            <button class="new-thread-button" type="button" data-action="create-thread">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M12 5v14M5 12h14" vector-effect="non-scaling-stroke" />
+              </svg>
+              <span>&#x65B0;&#x898F;&#x30B9;&#x30EC;&#x30C3;&#x30C9;</span>
+            </button>
+          </div>
+          <nav class="drawer-content" aria-label="&#x65E2;&#x5B58;&#x30B9;&#x30EC;&#x30C3;&#x30C9;&#x4E00;&#x89A7;">
+            <ol class="thread-list" role="list"></ol>
+            <p class="thread-empty" hidden>&#x307E;&#x3060;&#x30B9;&#x30EC;&#x30C3;&#x30C9;&#x304C;&#x3042;&#x308A;&#x307E;&#x305B;&#x3093;&#x3002;&#x65B0;&#x898F;&#x30B9;&#x30EC;&#x30C3;&#x30C9;&#x3092;&#x4F5C;&#x6210;&#x3057;&#x3066;&#x304F;&#x3060;&#x3055;&#x3044;&#x3002;</p>
+          </nav>
+        </aside>
+      </div>
+
+      <div class="layer settings-layer" data-role="settings-layer">
+        <div class="backdrop settings-backdrop" data-action="close-settings" aria-hidden="true"></div>
+        <section
+          class="settings-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="settings-title"
+          aria-describedby="settings-description"
+          aria-hidden="true"
+          tabindex="-1"
+        >
+          <header class="settings-header">
+            <div>
+              <h2 id="settings-title">&#x8A2D;&#x5B9A;</h2>
+              <p id="settings-description">&#x30C1;&#x30E3;&#x30C3;&#x30C8;&#x306E;&#x52D5;&#x4F5C;&#x3068;&#x30A2;&#x30B7;&#x30B9;&#x30BF;&#x30F3;&#x30C8;&#x306E;&#x60C5;&#x5831;&#x3092;&#x8ABF;&#x6574;&#x3057;&#x307E;&#x3059;&#x3002;</p>
+            </div>
+            <button class="settings-close icon-button" type="button" data-action="close-settings" aria-label="&#x8A2D;&#x5B9A;&#x3092;&#x9589;&#x3058;&#x308B;">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M6 6 18 18M6 18 18 6" vector-effect="non-scaling-stroke" />
+              </svg>
+            </button>
+          </header>
+          <form class="settings-form" autocomplete="off">
+            <fieldset class="settings-section">
+              <legend>&#x30A2;&#x30B7;&#x30B9;&#x30BF;&#x30F3;&#x30C8;&#x60C5;&#x5831;</legend>
+              <label class="field">
+                <span class="field-label">&#x8868;&#x793A;&#x540D;</span>
+                <input type="text" name="assistantName" placeholder="Aeris" value="Aeris" />
+              </label>
+              <label class="field">
+                <span class="field-label">&#x30B9;&#x30C6;&#x30FC;&#x30BF;&#x30B9;&#x30C6;&#x30AD;&#x30B9;&#x30C8;</span>
+                <input type="text" name="assistantStatus" placeholder="&#x3044;&#x3064;&#x3067;&#x3082;&#x76F8;&#x8AC7;&#x3067;&#x304D;&#x307E;&#x3059;" value="&#x3044;&#x3064;&#x3067;&#x3082;&#x76F8;&#x8AC7;&#x3067;&#x304D;&#x307E;&#x3059;" />
+              </label>
+              <label class="field">
+                <span class="field-label">&#x30ED;&#x30FC;&#x30AB;&#x30EB;&#x753B;&#x50CF;&#x30A2;&#x30C3;&#x30D7;&#x30ED;&#x30FC;&#x30C9;</span>
+                <input type="file" name="avatarFile" accept="image/*" />
+                <small class="field-support">
+                  &#x30D5;&#x30A1;&#x30A4;&#x30EB;&#x306F;1MB&#x4EE5;&#x4E0B;&#x306E;PNG/JPEG/SVG&#x3092;&#x4F7F;&#x7528;&#x3057;&#x3066;&#x304F;&#x3060;&#x3055;&#x3044;&#x3002;
+                  <span data-avatar-status>&#x30A2;&#x30C3;&#x30D7;&#x30ED;&#x30FC;&#x30C9;&#x753B;&#x50CF;&#x306F;&#x307E;&#x3060;&#x3042;&#x308A;&#x307E;&#x305B;&#x3093;&#x3002;</span>
+                </small>
+                <div class="field-actions">
+                  <button type="button" class="text-button" data-action="clear-avatar">&#x30A2;&#x30C3;&#x30D7;&#x30ED;&#x30FC;&#x30C9;&#x3092;&#x30AF;&#x30EA;&#x30A2;</button>
+                </div>
+              </label>
+            </fieldset>
+            <fieldset class="settings-section">
+              <legend>OpenAI &#x63A5;&#x7D9A;</legend>
+              <label class="field byok-feature">
+                <span class="field-label">API &#x30AD;&#x30FC;</span>
+                <input
+                  type="password"
+                  name="apiKey"
+                  placeholder="sk-..."
+                  autocomplete="off"
+                />
+                <small class="field-support">&#x30D6;&#x30E9;&#x30A6;&#x30B6;&#x306E;&#x30ED;&#x30FC;&#x30AB;&#x30EB;&#x30B9;&#x30C8;&#x30EC;&#x30FC;&#x30B8;&#x306B;&#x306E;&#x307F;&#x4FDD;&#x5B58;&#x3055;&#x308C;&#x307E;&#x3059;&#x3002;</small>
+              </label>
+              <label class="field">
+                <span class="field-label">&#x30E2;&#x30C7;&#x30EB;</span>
+                <select name="model">
+                  <option value="gpt-4o-latest" selected>GPT-4o Latest</option>
+                  <option value="gpt-4o-mini">GPT-4o mini</option>
+                  <option value="gpt-4.1">GPT-4.1</option>
+                </select>
+                <small class="field-support">&#x5B9F;&#x969B;&#x306B;&#x547C;&#x3073;&#x51FA;&#x3059;OpenAI&#x30E2;&#x30C7;&#x30EB;&#x3092;&#x9078;&#x629E;&#x3057;&#x307E;&#x3059;&#x3002;</small>
+              </label>
+              <label class="field">
+                <span class="field-label">&#x30B7;&#x30B9;&#x30C6;&#x30E0;&#x30D7;&#x30ED;&#x30F3;&#x30D7;&#x30C8;</span>
+                <textarea
+                  name="systemPrompt"
+                  rows="3"
+                  placeholder="&#x30A2;&#x30B7;&#x30B9;&#x30BF;&#x30F3;&#x30C8;&#x306B;&#x6C42;&#x3081;&#x308B;&#x30C8;&#x30FC;&#x30F3;&#x3084;&#x30EB;&#x30FC;&#x30EB;"
+                >&#x3042;&#x306A;&#x305F;&#x306F;UI&#x8A2D;&#x8A08;&#x3092;&#x624B;&#x4F1D;&#x3046;&#x89AA;&#x3057;&#x307F;&#x3084;&#x3059;&#x3044;&#x30A2;&#x30B7;&#x30B9;&#x30BF;&#x30F3;&#x30C8;&#x3067;&#x3059;&#x3002;&#x5E38;&#x306B;&#x65E5;&#x672C;&#x8A9E;&#x3067;&#x3001;&#x660E;&#x308B;&#x304F;&#x524D;&#x5411;&#x304D;&#x306A;&#x53E3;&#x8ABF;&#x3067;&#x4E01;&#x5BE7;&#x306B;&#x56DE;&#x7B54;&#x3057;&#x3066;&#x304F;&#x3060;&#x3055;&#x3044;&#x3002;</textarea>
+              </label>
+            </fieldset>
+            <div class="settings-actions">
+              <button type="button" class="ghost-button" data-action="close-settings">&#x30AD;&#x30E3;&#x30F3;&#x30BB;&#x30EB;</button>
+              <button type="submit" class="primary-button">&#x4FDD;&#x5B58;</button>
+            </div>
+          </form>
+        </section>
+      </div>
+
+      <section class="chat-thread" aria-label="&#x30C1;&#x30E3;&#x30C3;&#x30C8;&#x30B9;&#x30EC;&#x30C3;&#x30C9;">
+        <div class="chat-empty" role="status">&#x30E1;&#x30C3;&#x30BB;&#x30FC;&#x30B8;&#x3092;&#x9001;&#x4FE1;&#x3057;&#x3066;&#x4F1A;&#x8A71;&#x3092;&#x59CB;&#x3081;&#x307E;&#x3057;&#x3087;&#x3046;&#x3002;</div>
+        <ol class="chat-messages" aria-live="polite"></ol>
+      </section>
+
+      <form class="composer" autocomplete="off">
+        <label class="sr-only" for="message-input">&#x30E1;&#x30C3;&#x30BB;&#x30FC;&#x30B8;&#x672C;&#x6587;</label>
+        <textarea
+          id="message-input"
+          name="message"
+          rows="1"
+          placeholder="&#x805E;&#x304D;&#x305F;&#x3044;&#x3053;&#x3068;&#x3092;&#x66F8;&#x3044;&#x3066;&#x304F;&#x3060;&#x3055;&#x3044;&#x2026;"
+          maxlength="2000"
+          required
+        ></textarea>
+        <button class="send-button" type="submit" disabled>
+          <span>&#x9001;&#x4FE1;</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M4.3 4.3 20 12 4.3 19.7l1.4-5.6 8.3-2.1-8.3-2.1z" vector-effect="non-scaling-stroke" />
+          </svg>
+        </button>
+      </form>
+    </main>
+  </body>
+</html>
+</file>
+
+<file path="README.md">
+# ふらっとAI - スマホ用チャットアプリ
+
+スマートフォン向けチャットUIアプリケーションです。（PCからでももちろん操作可能）
+Open AIのAPIを使用する前提のUIです。（API利用には利用料金がかかりますので注意してください）
+APIをさくっと使ってみたい方におすすめです！改変などご自由にどうぞ！
+
+## 特徴
+
+- 📱 **レスポンシブデザイン**: スマートフォン画面（320-428px）に最適化
+- 🎨 **シンプルなUI**: 使いやすくてシンプルなデザインを目指しました
+- 💬 **リアルタイムチャット**: OpenAI APIとの連携でリアルタイム会話
+- ⚙️ **カスタマイズ可能**: アシスタント名、アバター、システムプロンプトを設定可能
+- 🔒 **ローカル保存**: ブラウザのローカルストレージでデータを安全に保存
+
+## ファイル構成
+
+```
+├── index.html          # メインHTMLファイル
+├── styles.css          # スタイルシート
+├── script.js           # JavaScript機能
+└── README.md           # このファイル
+```
+
+## 使用方法
+
+## ✅ はじめに（必要なもの）
+- いずれかの方法でデプロイします。**最短は「A. ワンクリック」**です。
+  - A. ワンクリック：**GitHubアカウント** + **Vercelアカウント**（無料プランで使用できます）
+  - B. GitHubなし：Vercelアカウント + PC + Vercel CLI
+  - C. デモ：APIなしのモックでUIだけ試す
+
+> セキュリティ上の理由で **GitHub Pages では動作させないでください**。  
+> OpenAIのAPIキーが公開されます。必ず Vercel でデプロイし、キーは**環境変数**に設定してください。
+
+---
+
+## 🚀 はじめ方（Vercel ダッシュボードから）
+[![Open Vercel Dashboard](https://img.shields.io/badge/Open%20Vercel%20Dashboard-000?logo=vercel)](https://vercel.com/dashboard)
+
+1. ダッシュボードを開く（未登録なら表示に従って無料登録）
+2. 右上 **Add New… → Project**
+3. **GitHub** を接続し、このリポジトリを選んで **Import**
+4. （必要なら）**Root Directory** を指定
+5. **Environment Variables** に `OPENAI_API_KEY` を追加
+6. **Deploy** を押す
+
+セキュリティ上、**GitHub Pages では本番運用不可**です。  
+UIだけ試すデモは `?demo=1`、本番は必ず Vercel を使ってください。
+---
+
+## GitHubアカウントなしでデプロイする場合（Vercel CLI）
+1. 右上 **Code → Download ZIP** でコード取得（GitHubアカウント不要）  
+2. PCで解凍し、フォルダで以下を実行：
+
+```bash
+npm i -g vercel
+vercel login
+vercel env add OPENAI_API_KEY   # OpenAIのAPIキーを入力
+vercel --prod
+
+## デプロイ後の手順
+
+1. デプロイしたURL（PCの場合は`index.html`）をブラウザで開く
+2. 設定ボタン（⚙️）をクリックしてOpenAI APIキーを設定
+3. メッセージを入力してAIと会話できます
+
+## 設定項目
+
+- **アシスタント名**: AIアシスタントの表示名
+- **ステータステキスト**: アシスタントの状態表示
+- **APIキー**: OpenAI APIキー（必須）
+- **モデル**: 使用するOpenAIモデル（GPT-4o Latest推奨）
+- **システムプロンプト**: AIアシスタントの性格や役割を定義
+- **アバター画像**: アシスタントのアイコン画像
+
+## 技術仕様
+
+- **フロントエンド**: HTML5, CSS3, Vanilla JavaScript
+- **API連携**: OpenAI Chat Completions API
+- **データ保存**: localStorage
+- **対応ブラウザ**: Safari iOS16+, Chrome Android, Chromium Desktop
+
+## ライセンス
+
+このプロジェクトはMITライセンスの下で公開されています。
+
+
+---
+
+**注意**: OpenAI APIキーは安全に管理し、他人と共有しないでください。
+</file>
+
+<file path="script.js">
 (() => {
   'use strict';
 
@@ -283,10 +1734,10 @@
         content: message.content,
       }));
 
-      if (window.__BYOK__ && !state.config.apiKey) {
-        const fallback = pickAssistantReply(userContent);
-        playFallbackAnimation(tracker.messageId, fallback);
-        state.pendingAssistant = null;
+    if (!window.__DEMO__ && !window.__BYOK__ && !state.config.apiKey) {
+       const fallback = pickAssistantReply(userContent);
+       playFallbackAnimation(tracker.messageId, fallback);
+       state.pendingAssistant = null;
        return;
     }
 
@@ -1488,4 +2939,6 @@
 
   init();
 })();
+</file>
 
+</files>
